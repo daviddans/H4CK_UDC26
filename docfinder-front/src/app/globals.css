@@ -1,0 +1,47 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #f6f8fc;
+  --foreground: #0f172a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-manrope);
+  --font-mono: var(--font-plex-mono);
+}
+
+* {
+  border-color: rgb(226 232 240);
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 14% -8%, rgba(34, 211, 238, 0.14), transparent 38%),
+    radial-gradient(circle at 88% 6%, rgba(16, 185, 129, 0.09), transparent 28%),
+    linear-gradient(180deg, #f8fbff 0%, #f5f7fb 48%, #f7fafc 100%);
+  color: var(--foreground);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.dark body {
+  --background: #0d1320;
+  --foreground: #f1f5f9;
+  background:
+    radial-gradient(circle at 18% -6%, rgba(59, 130, 246, 0.19), transparent 36%),
+    radial-gradient(circle at 88% 10%, rgba(20, 184, 166, 0.12), transparent 26%),
+    linear-gradient(180deg, #101827 0%, #111a2a 46%, #0f1726 100%);
+}
+
+mark {
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.28), rgba(14, 165, 233, 0.22));
+  color: inherit;
+  padding: 0.06rem 0.25rem;
+  border-radius: 0.35rem;
+}
