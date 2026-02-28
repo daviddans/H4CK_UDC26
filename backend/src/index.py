@@ -1,15 +1,29 @@
 from opensearchpy import OpenSearch
+from opensearch_dsl import Document, Text, Keyword
+
+
+class PdfDoc(Document):
+    authorName = Keyword()
+    content = Text()
+
+    class Index:
+        name = "pdf-repository"
+
+    def save(self, *args, **kwargs):
+        return super(PdfDoc, self).save(*args, **kwargs)
+
 
 # Connect to OpenSearch with SSL and authentication
 client = OpenSearch(
-    hosts=[{'host': 'localhost', 'port': 9200}],
-    http_auth=('admin', 'ComplexPassword123!'),
+    hosts=[{"host": "localhost", "port": 9200}],
+    http_auth=("admin", "ComplexPassword123!"),
     use_ssl=True,
     verify_certs=False,  # Necessary for local self-signed certs
-    ssl_show_warn=False
+    ssl_show_warn=False,
 )
 
-#Create an index with specific settings and mappings
+
+# Create an index with specific settings and mappings
 def create_index(index_name):
     """Creates an index with specific settings if it doesn't exist."""
     settings = {
@@ -18,9 +32,9 @@ def create_index(index_name):
             "properties": {
                 "title": {"type": "text"},
                 "tags": {"type": "keyword"},
-                "view_count": {"type": "integer"}
+                "view_count": {"type": "integer"},
             }
-        }
+        },
     }
     if not client.indices.exists(index=index_name):
         client.indices.create(index=index_name, body=settings)
