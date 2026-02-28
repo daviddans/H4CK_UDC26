@@ -69,8 +69,8 @@ export default function DocumentDetailPage() {
   if (!document) {
     return (
       <div className="mx-auto max-w-3xl px-5 py-20 text-center md:px-8">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Document not found</h1>
-        <p className="mt-3 text-slate-500">The requested document id does not exist in the demo index.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Document not found</h1>
+        <p className="mt-3 text-slate-500 dark:text-slate-400">The requested document id does not exist in the demo index.</p>
         <Button asChild className="mt-6">
           <Link href="/">Back to search</Link>
         </Button>
@@ -83,7 +83,7 @@ export default function DocumentDetailPage() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-cyan-700">DocFinder</p>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{document.title}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{document.title}</h1>
         </div>
         <Button asChild variant="secondary">
           <Link href="/">Back</Link>
@@ -96,8 +96,8 @@ export default function DocumentDetailPage() {
             <CardTitle className="text-base">Metadata</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2 text-sm text-slate-600">
-              <p className="font-semibold text-slate-800">{document.doc_id}</p>
+            <div className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+              <p className="font-semibold text-slate-800 dark:text-slate-100">{document.doc_id}</p>
               <p>{document.title}</p>
             </div>
 
@@ -106,17 +106,17 @@ export default function DocumentDetailPage() {
               <Badge variant="outline">{document.category}</Badge>
             </div>
 
-            <div className="space-y-2 text-sm text-slate-600">
+            <div className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
               <p className="inline-flex items-center gap-2">
-                <Languages className="h-4 w-4 text-slate-400" />
+                <Languages className="h-4 w-4 text-slate-400 dark:text-slate-500" />
                 {document.lang}
               </p>
               <p className="inline-flex items-center gap-2">
-                <FileText className="h-4 w-4 text-slate-400" />
+                <FileText className="h-4 w-4 text-slate-400 dark:text-slate-500" />
                 {document.date}
               </p>
               <p className="inline-flex items-center gap-2">
-                <Tag className="h-4 w-4 text-slate-400" />
+                <Tag className="h-4 w-4 text-slate-400 dark:text-slate-500" />
                 score {document.score.toFixed(2)}
               </p>
             </div>
@@ -149,19 +149,19 @@ export default function DocumentDetailPage() {
             <CardTitle className="text-base">PDF preview</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex min-h-[560px] flex-col justify-between rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <div className="flex min-h-[560px] flex-col justify-between rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-900">
               <div>
-                <p className="text-sm font-semibold text-slate-700">Viewer placeholder</p>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Viewer placeholder</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   Integrate your preferred PDF viewer here. The panel already receives page context
                   from evidences.
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
                 {selectedChunk ? (
                   <>
-                    <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">
+                    <p className="mb-2 text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
                       highlighted evidence pag. {selectedChunk.page_start}
                     </p>
                     <div dangerouslySetInnerHTML={{ __html: selectedChunk.snippet_html }} />
@@ -191,14 +191,14 @@ export default function DocumentDetailPage() {
             {document.chunks.map((chunk) => (
               <article
                 key={chunk.chunk_id}
-                className="rounded-2xl border border-slate-200 bg-white p-3 text-sm"
+                className="rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-slate-700 dark:bg-slate-900"
               >
-                <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
+                <div className="mb-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                   <span>{chunk.doc_id}</span>
                   <span>pag. {chunk.page_start}</span>
                 </div>
                 <div
-                  className="text-slate-600"
+                  className="text-slate-600 dark:text-slate-300"
                   dangerouslySetInnerHTML={{ __html: chunk.snippet_html }}
                 />
                 <div className="mt-3 flex justify-end">

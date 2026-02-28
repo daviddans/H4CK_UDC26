@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
+  AlertTriangle,
   CommandIcon,
   Grid3X3,
   List,
@@ -15,12 +16,12 @@ import {
 } from "lucide-react";
 
 import type { AskResponse, SearchApiResponse, SearchFilters, SearchMode } from "@/types/docfinder";
-import { getAvailableFilters } from "@/lib/mock-data";
 import { AskPanel } from "@/components/docfinder/ask-panel";
 import { CommandPalette } from "@/components/docfinder/command-palette";
 import { FilterSidebar } from "@/components/docfinder/filter-sidebar";
 import { ResultCard } from "@/components/docfinder/result-card";
 import { ResultSkeleton } from "@/components/docfinder/result-skeleton";
+import { ThemeToggle } from "@/components/docfinder/theme-toggle";
 import { UploadModal } from "@/components/docfinder/upload-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,7 +47,12 @@ const INITIAL_DATA: SearchApiResponse = {
   page: 1,
   pageSize: PAGE_SIZE,
   hasMore: false,
-  available: getAvailableFilters(),
+  available: {
+    docTypes: [],
+    categories: [],
+    tags: [],
+    langs: [],
+  },
 };
 
 function buildPagination(current: number, totalPages: number) {
@@ -69,8 +75,10 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [askLoading, setAskLoading] = useState(false);
   const [data, setData] = useState<SearchApiResponse>(INITIAL_DATA);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [askResponse, setAskResponse] = useState<AskResponse | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   useEffect(() => {
     if (mode !== "search") {
@@ -80,6 +88,7 @@ export default function HomePage() {
     const controller = new AbortController();
     const timeout = window.setTimeout(async () => {
       setLoading(true);
+      setSearchError(null);
       try {
         const response = await fetch("/api/search", {
           method: "POST",
@@ -94,13 +103,27 @@ export default function HomePage() {
           signal: controller.signal,
         });
 
-        const payload = (await response.json()) as SearchApiResponse;
+        const payload = (await response.json()) as
+          | SearchApiResponse
+          | { error?: string; details?: string[] };
+
         if (!response.ok) {
-          throw new Error("Search failed");
+          const reason =
+            (typeof payload === "object" && payload && "error" in payload && payload.error) ||
+            "Search failed";
+          const details =
+            typeof payload === "object" &&
+            payload &&
+            "details" in payload &&
+            Array.isArray(payload.details)
+              ? payload.details[0]
+              : undefined;
+          throw new Error(details ? `${reason}: ${details}` : reason);
         }
 
-        setData(payload);
-      } catch {
+        setData(payload as SearchApiResponse);
+      } catch (error) {
+        setSearchError(error instanceof Error ? error.message : "Search request failed");
         setData((prev) => ({ ...prev, hits: [], total: 0, hasMore: false }));
       } finally {
         setLoading(false);
@@ -132,7 +155,7 @@ export default function HomePage() {
       setAskResponse(payload);
     } catch {
       setAskResponse({
-        answer: "Request failed. Check API mock status and try again.",
+        answer: "Request failed. Check backend /ask endpoint status and try again.",
         citations: [],
       });
     } finally {
@@ -213,28 +236,30 @@ export default function HomePage() {
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
   return (
-    <div className="relative min-h-screen overflow-hidden pb-16">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.18),transparent_35%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.14),transparent_28%)]" />
+    <div className="relative min-h-screen overflow-hidden pb-20">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.18),transparent_35%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.14),transparent_28%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.22),transparent_40%),radial-gradient(circle_at_top_right,_rgba(20,184,166,0.18),transparent_34%)]" />
 
-      <header className="sticky top-0 z-30 border-b border-white/80 bg-white/80 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between px-5 py-4 md:px-8">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <div className="rounded-xl bg-slate-900 p-2 text-white shadow-lg shadow-slate-900/30">
+      <header className="sticky top-0 z-30 border-b border-white/70 bg-white/75 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/75">
+        <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between px-4 py-4 md:px-8">
+          <Link href="/" className="inline-flex items-center gap-3">
+            <div className="rounded-xl bg-slate-900 p-2 text-white shadow-lg shadow-slate-900/30 dark:bg-slate-100 dark:text-slate-900">
               <Search className="h-4 w-4" />
             </div>
             <div>
-              <p className="text-lg font-bold tracking-tight text-slate-900">DocFinder</p>
-              <p className="text-xs text-slate-500">document intelligence</p>
+              <p className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">DocFinder</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">document intelligence</p>
             </div>
           </Link>
 
-          <div className="hidden items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1 md:flex">
+          <div className="hidden items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900 md:flex">
             <button
               type="button"
               onClick={() => setMode("search")}
               className={cn(
                 "rounded-xl px-4 py-2 text-sm font-semibold transition",
-                mode === "search" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+                mode === "search"
+                  ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
+                  : "text-slate-500 dark:text-slate-400"
               )}
             >
               Search
@@ -244,7 +269,9 @@ export default function HomePage() {
               onClick={() => setMode("ask")}
               className={cn(
                 "rounded-xl px-4 py-2 text-sm font-semibold transition",
-                mode === "ask" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+                mode === "ask"
+                  ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
+                  : "text-slate-500 dark:text-slate-400"
               )}
             >
               Ask
@@ -252,6 +279,7 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Button variant="secondary" onClick={() => setPaletteOpen(true)}>
               <CommandIcon className="h-4 w-4" />
               Ctrl+K
@@ -268,22 +296,22 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className="relative mx-auto mt-8 w-full max-w-[1400px] px-5 md:px-8">
+      <main className="relative mx-auto mt-7 w-full max-w-[1440px] px-4 md:px-8">
         <motion.section
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6 rounded-3xl border border-white/80 bg-white/80 p-5 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl md:p-7"
+          className="mb-4 rounded-3xl border border-white/80 bg-white/75 p-4 shadow-[0_16px_38px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/70 md:p-5"
         >
-          <p className="mb-3 text-center text-xs font-semibold uppercase tracking-[0.25em] text-cyan-700/75">
+          <p className="mb-2 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-700/75 dark:text-cyan-300/70">
             Enterprise Document Search
           </p>
-          <h1 className="mb-5 text-center text-4xl font-bold tracking-tight text-slate-900 md:text-5xl">
+          <h1 className="mb-3 text-center text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 md:text-3xl">
             Find evidence in seconds
           </h1>
 
           {mode === "search" && (
-            <div className="mx-auto flex w-full max-w-4xl items-center gap-3 rounded-[2rem] border border-slate-200 bg-white px-4 py-3 shadow-[0_18px_38px_rgba(15,23,42,0.08)]">
-              <Search className="h-5 w-5 text-slate-400" />
+            <div className="mx-auto flex w-full max-w-5xl items-center gap-3 rounded-[1.6rem] border border-slate-200 bg-white px-4 py-2.5 shadow-[0_12px_28px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900">
+              <Search className="h-5 w-5 text-slate-400 dark:text-slate-500" />
               <Input
                 value={query}
                 onChange={(event) => {
@@ -291,7 +319,7 @@ export default function HomePage() {
                   setQuery(event.target.value);
                 }}
                 placeholder="Search by clause, control, policy, incident, vendor..."
-                className="h-12 border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0"
+                className="h-10 border-0 bg-transparent px-0 text-[15px] shadow-none focus-visible:ring-0"
               />
               <Button variant="accent" className="rounded-2xl" onClick={() => setPage(1)}>
                 Search
@@ -300,19 +328,21 @@ export default function HomePage() {
           )}
 
           {mode === "ask" && (
-            <div className="mx-auto max-w-3xl text-center text-sm text-slate-500">
+            <div className="mx-auto max-w-3xl text-center text-sm text-slate-500 dark:text-slate-400">
               Ask a natural language question and get an answer with grounded sources.
             </div>
           )}
 
-          <div className="mt-5 flex justify-center md:hidden">
-            <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1">
+          <div className="mt-3 flex justify-center md:hidden">
+            <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900">
               <button
                 type="button"
                 onClick={() => setMode("search")}
                 className={cn(
                   "rounded-xl px-4 py-2 text-sm font-semibold transition",
-                  mode === "search" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+                  mode === "search"
+                    ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
+                    : "text-slate-500 dark:text-slate-400"
                 )}
               >
                 Search
@@ -322,7 +352,9 @@ export default function HomePage() {
                 onClick={() => setMode("ask")}
                 className={cn(
                   "rounded-xl px-4 py-2 text-sm font-semibold transition",
-                  mode === "ask" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+                  mode === "ask"
+                    ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
+                    : "text-slate-500 dark:text-slate-400"
                 )}
               >
                 Ask
@@ -340,61 +372,70 @@ export default function HomePage() {
             response={askResponse}
           />
         ) : (
-          <section className="grid grid-cols-1 gap-6 lg:grid-cols-[320px,1fr]">
-            <FilterSidebar
-              filters={filters}
-              available={data.available}
-              onUpdate={(next) => {
-                setPage(1);
-                setFilters(next);
-              }}
-            />
+          <section className="space-y-3">
+            <aside className={cn("order-1", mobileFiltersOpen ? "block" : "hidden md:block")}>
+              <FilterSidebar
+                filters={filters}
+                available={data.available}
+                onUpdate={(next) => {
+                  setPage(1);
+                  setFilters(next);
+                }}
+              />
+            </aside>
 
-            <div className="space-y-4">
-              <Card className="rounded-3xl">
-                <CardContent className="space-y-4 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <SlidersHorizontal className="h-4 w-4 text-slate-400" />
-                      {data.total} results
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant={view === "grid" ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setView("grid")}
-                      >
-                        <Grid3X3 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant={view === "list" ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setView("list")}
-                      >
-                        <List className="h-4 w-4" />
-                      </Button>
-                    </div>
+            <div className="order-2 space-y-3">
+              <div className="space-y-2 px-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                    <SlidersHorizontal className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                    {data.total} results
                   </div>
 
-                  {appliedFilters.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {appliedFilters.map((chip) => (
-                        <Badge key={chip.key} variant="outline" className="gap-1">
-                          {chip.label}
-                          <button
-                            type="button"
-                            className="rounded-full p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                            onClick={chip.remove}
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="md:hidden"
+                      onClick={() => setMobileFiltersOpen((prev) => !prev)}
+                    >
+                      <SlidersHorizontal className="h-4 w-4" />
+                      {mobileFiltersOpen ? "Hide filters" : "Filters"}
+                    </Button>
+                    <Button
+                      variant={view === "grid" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setView("grid")}
+                    >
+                      <Grid3X3 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={view === "list" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setView("list")}
+                    >
+                      <List className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {appliedFilters.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {appliedFilters.map((chip) => (
+                      <Badge key={chip.key} variant="outline" className="gap-1">
+                        {chip.label}
+                        <button
+                          type="button"
+                          className="rounded-full p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                          onClick={chip.remove}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {loading ? (
                 <div
@@ -407,12 +448,22 @@ export default function HomePage() {
                     <ResultSkeleton key={index} />
                   ))}
                 </div>
+              ) : searchError ? (
+                <Card className="rounded-3xl border-rose-200 dark:border-rose-500/30">
+                  <CardContent className="flex items-start gap-3 py-8 text-left">
+                    <AlertTriangle className="mt-0.5 h-5 w-5 text-rose-500" />
+                    <div>
+                      <h2 className="text-lg font-semibold text-rose-700 dark:text-rose-300">Backend search error</h2>
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{searchError}</p>
+                    </div>
+                  </CardContent>
+                </Card>
               ) : data.hits.length === 0 ? (
-                <Card className="rounded-3xl border-dashed">
+                <Card className="rounded-3xl border-dashed dark:border-slate-700">
                   <CardContent className="flex flex-col items-center gap-3 py-14 text-center">
-                    <Sparkles className="h-10 w-10 text-slate-300" />
-                    <h2 className="text-lg font-semibold text-slate-700">No results found</h2>
-                    <p className="max-w-sm text-sm text-slate-500">
+                    <Sparkles className="h-10 w-10 text-slate-300 dark:text-slate-600" />
+                    <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200">No results found</h2>
+                    <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
                       Try a different query, remove filters, or switch to Ask mode for a broader semantic answer.
                     </p>
                   </CardContent>
@@ -432,7 +483,7 @@ export default function HomePage() {
 
                   <Card className="rounded-3xl">
                     <CardContent className="flex items-center justify-between gap-3 p-4">
-                      <p className="text-sm text-slate-500">
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
                         Page {data.page} of {totalPages}
                       </p>
 

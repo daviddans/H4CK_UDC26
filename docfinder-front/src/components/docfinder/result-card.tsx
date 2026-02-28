@@ -24,7 +24,7 @@ export function ResultCard({ hit, view }: ResultCardProps) {
     >
       <Card
         className={cn(
-          "h-full overflow-hidden border-slate-200/90 transition hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(15,23,42,0.08)]",
+          "h-full overflow-hidden border-slate-200/90 transition hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:hover:shadow-[0_24px_54px_rgba(0,0,0,0.45)]",
           view === "list" && "flex flex-col"
         )}
       >
@@ -36,20 +36,20 @@ export function ResultCard({ hit, view }: ResultCardProps) {
             <Badge variant="outline" className="capitalize">
               {hit.category}
             </Badge>
-            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
               <Sparkles className="h-3.5 w-3.5" />
               {hit.score.toFixed(2)}
             </span>
           </div>
           <CardTitle className="text-lg leading-6">
-            <Link href={`/document/${hit.doc_id}`} className="hover:text-cyan-700">
+            <Link href={`/document/${hit.doc_id}`} className="hover:text-cyan-700 dark:hover:text-cyan-300">
               {hit.title}
             </Link>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div
-            className="line-clamp-4 text-sm leading-relaxed text-slate-600"
+            className="line-clamp-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300"
             dangerouslySetInnerHTML={{ __html: hit.snippet_html }}
           />
 
@@ -61,7 +61,7 @@ export function ResultCard({ hit, view }: ResultCardProps) {
             ))}
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 dark:text-slate-400 md:grid-cols-4">
             <span className="inline-flex items-center gap-1">
               <Calendar className="h-3.5 w-3.5" />
               {hit.date}
@@ -74,7 +74,7 @@ export function ResultCard({ hit, view }: ResultCardProps) {
               <FileText className="h-3.5 w-3.5" />
               pag. {hit.page_start}-{hit.page_end}
             </span>
-            <span className="truncate text-right text-slate-400">{hit.doc_id}</span>
+            <span className="truncate text-right text-slate-400 dark:text-slate-500">{hit.doc_id}</span>
           </div>
 
           <div className="flex justify-end">

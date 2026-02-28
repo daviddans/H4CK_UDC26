@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DocFinder Frontend
 
-## Getting Started
+Frontend en Next.js para búsqueda y carga de documentos contra backend FastAPI.
 
-First, run the development server:
+## Ejecutar
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+App: `http://localhost:3000`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Configuración backend
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Crear `docfinder-front/.env.local`:
 
-## Learn More
+```bash
+BACKEND_URL=http://127.0.0.1:8000
+# opcional, para persistir ficheros subidos antes de indexar
+BACKEND_UPLOAD_DIR=/tmp/docfinder_uploads
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Contratos usados
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `POST /search` (o `POST /search `):
+  - payload: `{ "querry": "texto" }` (también soporta `query` y `q`)
+- `GET /add-index?path=/ruta/al/fichero`
+- `POST /add-index` con `{ "path": "/ruta" }` o `{ "file": { "path": "/ruta" } }`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Estado actual
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `search`: conectado a backend real (sin fallback mock).
+- `upload`: guarda archivo localmente y luego indexa en backend.
+- `ask`: devuelve error `501` porque backend no expone `/ask`.
+- `document detail`: usa resultados cacheados de búsqueda backend.

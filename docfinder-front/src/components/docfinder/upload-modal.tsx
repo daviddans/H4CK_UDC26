@@ -127,7 +127,7 @@ export function UploadModal({ trigger, onUploaded }: UploadModalProps) {
         </DialogHeader>
 
         <label
-          className="flex min-h-44 cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-center hover:border-cyan-300 hover:bg-cyan-50"
+          className="flex min-h-44 cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-center hover:border-cyan-300 hover:bg-cyan-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-cyan-500/60 dark:hover:bg-cyan-500/10"
           onDragOver={(event) => event.preventDefault()}
           onDrop={(event) => {
             event.preventDefault();
@@ -137,11 +137,11 @@ export function UploadModal({ trigger, onUploaded }: UploadModalProps) {
             }
           }}
         >
-          <FileUp className="h-8 w-8 text-slate-400" />
-          <p className="text-sm font-medium text-slate-700">
+          <FileUp className="h-8 w-8 text-slate-400 dark:text-slate-500" />
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
             {file ? file.name : "Drop file here or click to browse"}
           </p>
-          <p className="text-xs text-slate-500">PDF, TXT, CSV, XLSX</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">PDF, TXT, CSV, XLSX</p>
           <Input
             type="file"
             className="hidden"
@@ -151,7 +151,7 @@ export function UploadModal({ trigger, onUploaded }: UploadModalProps) {
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <div className="space-y-2">
-            <p className="text-sm font-medium text-slate-700">Doc type</p>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Doc type</p>
             <Select value={docType} onValueChange={setDocType}>
               <SelectTrigger>
                 <SelectValue />
@@ -167,7 +167,7 @@ export function UploadModal({ trigger, onUploaded }: UploadModalProps) {
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm font-medium text-slate-700">Category</p>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Category</p>
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger>
                 <SelectValue />
@@ -183,7 +183,7 @@ export function UploadModal({ trigger, onUploaded }: UploadModalProps) {
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm font-medium text-slate-700">Language</p>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Language</p>
             <Select value={lang} onValueChange={setLang}>
               <SelectTrigger>
                 <SelectValue />
@@ -199,7 +199,7 @@ export function UploadModal({ trigger, onUploaded }: UploadModalProps) {
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm font-medium text-slate-700">Tags</p>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Tags</p>
             <Input
               value={tags}
               onChange={(event) => setTags(event.target.value)}
@@ -209,13 +209,13 @@ export function UploadModal({ trigger, onUploaded }: UploadModalProps) {
         </div>
 
         <div className="space-y-2">
-          <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+          <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
             <div
               className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 transition-all"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-xs text-slate-500">{progressLabel}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{progressLabel}</p>
         </div>
 
         {error && <p className="text-sm font-medium text-rose-600">{error}</p>}

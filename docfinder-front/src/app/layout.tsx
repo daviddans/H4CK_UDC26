@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Manrope } from "next/font/google";
+import { IBM_Plex_Mono, Public_Sans } from "next/font/google";
 import "./globals.css";
 
-const manrope = Manrope({
+const publicSans = Public_Sans({
   variable: "--font-manrope",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const plexMono = IBM_Plex_Mono({
@@ -23,9 +24,22 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const themeBootScript = `
+    (function() {
+      try {
+        var stored = localStorage.getItem('docfinder-theme');
+        var useDark = stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', useDark);
+      } catch (e) {}
+    })();
+  `;
+
   return (
-    <html lang="en">
-      <body className={`${manrope.variable} ${plexMono.variable} font-sans antialiased`}>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
+      </head>
+      <body className={`${publicSans.variable} ${plexMono.variable} font-sans antialiased`}>
         {children}
       </body>
     </html>

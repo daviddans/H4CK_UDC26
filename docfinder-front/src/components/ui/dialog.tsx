@@ -34,7 +34,7 @@ function DialogOverlay({
 }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
   return (
     <DialogPrimitive.Overlay
-      className={cn("fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm", className)}
+      className={cn("fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm", className)}
       {...props}
     />
   );
@@ -50,13 +50,13 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         className={cn(
-          "fixed left-[50%] top-[50%] z-50 grid w-[92vw] max-w-xl translate-x-[-50%] translate-y-[-50%] gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl",
+          "fixed left-[50%] top-[50%] z-50 grid w-[92vw] max-w-xl translate-x-[-50%] translate-y-[-50%] gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-950",
           className
         )}
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-md text-slate-400 hover:text-slate-700">
+        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
@@ -91,7 +91,7 @@ function DialogDescription({
 }: React.ComponentProps<typeof DialogPrimitive.Description>) {
   return (
     <DialogPrimitive.Description
-      className={cn("text-sm text-slate-500", className)}
+      className={cn("text-sm text-slate-500 dark:text-slate-400", className)}
       {...props}
     />
   );

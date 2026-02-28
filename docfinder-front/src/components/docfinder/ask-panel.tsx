@@ -51,30 +51,30 @@ export function AskPanel({ question, onChange, onAsk, loading, response }: AskPa
               <CardTitle className="text-base">Assistant response</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-4 text-sm leading-relaxed text-slate-700">
+              <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-4 text-sm leading-relaxed text-slate-700 dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-slate-200">
                 {response.answer}
               </div>
 
               <div className="mt-5 space-y-3">
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <FileSearch className="h-4 w-4 text-slate-400" />
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  <FileSearch className="h-4 w-4 text-slate-400 dark:text-slate-500" />
                   Fuentes
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   {response.citations.map((citation) => (
                     <div
                       key={`${citation.doc_id}-${citation.page}`}
-                      className="rounded-2xl border border-slate-200 bg-white p-4"
+                      className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
                     >
                       <div className="mb-2 flex items-center justify-between gap-2">
                         <Badge variant="outline">{citation.doc_id}</Badge>
-                        <span className="text-xs text-slate-500">pag. {citation.page}</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">pag. {citation.page}</span>
                       </div>
-                      <p className="mb-2 text-sm font-semibold leading-5 text-slate-800">
+                      <p className="mb-2 text-sm font-semibold leading-5 text-slate-800 dark:text-slate-100">
                         {citation.title}
                       </p>
                       <div
-                        className="text-sm text-slate-600"
+                        className="text-sm text-slate-600 dark:text-slate-300"
                         dangerouslySetInnerHTML={{ __html: citation.snippet_html }}
                       />
                       <div className="mt-3">
