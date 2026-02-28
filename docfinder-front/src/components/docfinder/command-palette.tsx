@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { FileSearch, Layers3 } from "lucide-react";
 
-import { getQuickItems } from "@/lib/mock-data";
+import type { DocumentHit } from "@/types/docfinder";
 import {
   Dialog,
   DialogContent,
@@ -24,10 +24,29 @@ type CommandPaletteProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelectQuery: (query: string) => void;
+  hits: DocumentHit[];
 };
 
-export function CommandPalette({ open, onOpenChange, onSelectQuery }: CommandPaletteProps) {
-  const [items] = useState(getQuickItems());
+export function CommandPalette({ open, onOpenChange, onSelectQuery, hits }: CommandPaletteProps) {
+  const items = useMemo(() => {
+    const seen = new Set<string>();
+    const unique: Array<Pick<DocumentHit, "doc_id" | "title" | "category">> = [];
+    for (const hit of hits) {
+      if (seen.has(hit.doc_id)) {
+        continue;
+      }
+      seen.add(hit.doc_id);
+      unique.push({
+        doc_id: hit.doc_id,
+        title: hit.title,
+        category: hit.category,
+      });
+      if (unique.length >= 14) {
+        break;
+      }
+    }
+    return unique;
+  }, [hits]);
 
   useEffect(() => {
     const down = (event: KeyboardEvent) => {
@@ -51,24 +70,26 @@ export function CommandPalette({ open, onOpenChange, onSelectQuery }: CommandPal
           <CommandInput placeholder="Search documents, categories, tags..." />
           <CommandList>
             <CommandEmpty>No suggestions found.</CommandEmpty>
-            <CommandGroup heading="Documents">
-              {items.map((item) => (
-                <CommandItem
-                  key={item.doc_id}
-                  onSelect={() => {
-                    onSelectQuery(item.title);
-                    onOpenChange(false);
-                  }}
-                >
-                  <FileSearch className="h-4 w-4 text-slate-400" />
-                  <div className="flex flex-col">
-                    <span>{item.title}</span>
-                    <span className="text-xs text-slate-500">{item.doc_id}</span>
-                  </div>
-                  <CommandShortcut>{item.category}</CommandShortcut>
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            {items.length > 0 ? (
+              <CommandGroup heading="Documents">
+                {items.map((item) => (
+                  <CommandItem
+                    key={item.doc_id}
+                    onSelect={() => {
+                      onSelectQuery(item.title);
+                      onOpenChange(false);
+                    }}
+                  >
+                    <FileSearch className="h-4 w-4 text-slate-400" />
+                    <div className="flex flex-col">
+                      <span>{item.title}</span>
+                      <span className="text-xs text-slate-500">{item.doc_id}</span>
+                    </div>
+                    <CommandShortcut>{item.category}</CommandShortcut>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ) : null}
             <CommandGroup heading="Actions">
               <CommandItem
                 onSelect={() => {

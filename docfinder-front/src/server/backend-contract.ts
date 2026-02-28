@@ -12,7 +12,9 @@ type BackendSourceMetadata = {
   category?: string;
   tags?: string[] | string;
   lang?: string;
+  type?: string;
   date?: string;
+  creation_date?: string;
   page_start?: number | string;
   page_end?: number | string;
   path?: string;
@@ -29,6 +31,10 @@ type BackendRawHit = {
   _score?: number;
   _source?: {
     content?: string;
+    chunk_data?: {
+      source?: string;
+      chunk_id?: number | string;
+    };
     metadata?: BackendSourceMetadata;
   };
 };
@@ -192,9 +198,10 @@ export function mapBackendHits(payload: BackendSearchResponse, queryText: string
 
   return rawHits.map((hit, index) => {
     const metadata = hit._source?.metadata ?? {};
-    const sourceName = metadata.source_name ?? metadata.source ?? `document-${index + 1}.txt`;
+    const chunkData = hit._source?.chunk_data ?? {};
+    const sourceName = metadata.source_name ?? metadata.source ?? chunkData.source ?? `document-${index + 1}.txt`;
     const uploadMeta = getUploadRegistryEntryBySource(sourceName);
-    const chunkRaw = metadata.chunk_id ?? index;
+    const chunkRaw = metadata.chunk_id ?? chunkData.chunk_id ?? index;
     const chunkId = toNumber(chunkRaw, index);
     const content = hit._source?.content ?? "";
     const docId = metadata.doc_id ?? uploadMeta?.doc_id ?? makeDocId(sourceName);
@@ -236,8 +243,8 @@ export function mapBackendHits(payload: BackendSearchResponse, queryText: string
       tags: mergedTags.length ? mergedTags : ["indexed"],
       page_start: pageStart,
       page_end: pageEnd,
-      lang: metadata.lang ?? uploadMeta?.lang ?? "unknown",
-      date: metadata.date ?? dateFromUpload ?? now,
+      lang: metadata.lang ?? metadata.type ?? uploadMeta?.lang ?? "unknown",
+      date: metadata.date ?? metadata.creation_date ?? dateFromUpload ?? now,
       score: Number(hit._score ?? 0),
       snippet_html: makeSnippet(content, queryText),
       source_name: sourceName,

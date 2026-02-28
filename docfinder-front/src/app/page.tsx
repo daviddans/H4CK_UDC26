@@ -556,6 +556,7 @@ export default function HomePage() {
       <CommandPalette
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
+        hits={data.hits}
         onSelectQuery={(selectedQuery) => {
           setMode("search");
           setQuery(selectedQuery);
