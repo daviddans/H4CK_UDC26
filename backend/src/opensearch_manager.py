@@ -148,4 +148,3 @@ class OpenSearchManager:
         except Exception as e:
             print(f"Error en búsqueda RRF: {e}")
             return None
-

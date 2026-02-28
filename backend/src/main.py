@@ -25,6 +25,7 @@ def main():
     elif comando == "index":
         if len(sys.argv) < 3:
             print("Error: Proporciona la ruta del PDF.")
+            return
         else:
             manager.index_pdf(INDEX_NAME, sys.argv[2])
 
@@ -47,7 +48,8 @@ def main():
             else:
                 print("No se encontraron resultados.")
 
+            return
+
 
 if __name__ == "__main__":
     main()
-
