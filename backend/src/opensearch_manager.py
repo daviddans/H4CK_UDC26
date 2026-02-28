@@ -40,7 +40,7 @@ class OpenSearchManager:
                     "normalization-processor": {
                         "normalization": {"technique": "min_max"},
                         "combination": {
-                            "technique": "arithmetic_mean",
+                            "technique": "harmonic_mean",
                             "parameters": {
                                 # 15% Match, 60% Frase Literal, 25% Semántica
                                 "weights": [0.15, 0.60, 0.25]
@@ -122,7 +122,7 @@ class OpenSearchManager:
         helpers.bulk(self.client, acciones_bulk())
         print(f"Documento '{os.path.basename(file_path)}' indexado.")
 
-    def hybrid_search_rrf(self, index_name, query_text, top_k=5):
+    def hybrid_search_rrf(self, index_name, query_text, top_k=10):
         """Búsqueda de 3 vías para maximizar la precisión literal y semántica."""
         try:
             # Prefijo 'query: ' para búsqueda semántica
