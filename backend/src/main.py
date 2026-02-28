@@ -1,6 +1,9 @@
 import sys
+
+from opensearch_dsl import query
 import index
 import indexer  
+import search
 from opensearchpy import OpenSearch
 
 INDEXNAME = "my-index"
@@ -42,6 +45,12 @@ def main(argc, argv):
             return -1
         print(f"Indexing file: {file_path}")
         status = indexer.index_document(client, INDEXNAME, file_path)
+    if command == "search":
+        query = argv[2] if argc > 2 else None
+        if not query:
+            print("Please provide a query to search. Usage: python main.py search <query>")
+            return -1
+        search.search(client, INDEXNAME, query)
     else:
         print(f"Unknown command: {command}. Use 'help' for available commands.")
         return -1
