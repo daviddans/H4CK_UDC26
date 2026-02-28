@@ -20,6 +20,7 @@ export default function DocumentDetailPage() {
 
   useEffect(() => {
     const controller = new AbortController();
+    let disposed = false;
 
     async function fetchDocument() {
       setLoading(true);
@@ -29,29 +30,56 @@ export default function DocumentDetailPage() {
         });
 
         if (!response.ok) {
-          setDocument(null);
+          if (!disposed) {
+            setDocument(null);
+            setSelectedPage(null);
+          }
           return;
         }
 
         const payload = (await response.json()) as DocumentDetail;
-        setDocument(payload);
-        setSelectedPage(payload.chunks[0]?.page_start ?? null);
+        if (!disposed) {
+          setDocument(payload);
+          setSelectedPage(payload.chunks[0]?.page_start ?? null);
+        }
+      } catch (error) {
+        const isAbort =
+          (error instanceof DOMException && error.name === "AbortError") ||
+          (error instanceof Error && error.name === "AbortError");
+        if (isAbort) {
+          return;
+        }
+        if (!disposed) {
+          setDocument(null);
+          setSelectedPage(null);
+        }
       } finally {
-        setLoading(false);
+        if (!disposed) {
+          setLoading(false);
+        }
       }
     }
 
     if (docId) {
-      fetchDocument();
+      void fetchDocument();
+    } else {
+      setLoading(false);
+      setDocument(null);
+      setSelectedPage(null);
     }
 
-    return () => controller.abort();
+    return () => {
+      disposed = true;
+      controller.abort();
+    };
   }, [docId]);
 
   const selectedChunk = useMemo(
     () => document?.chunks.find((chunk) => chunk.page_start === selectedPage),
     [document, selectedPage]
   );
+  const hasDownloadUrl = Boolean(document?.download_url);
+  const hasOpenUrl = Boolean(document?.open_url);
 
   if (loading) {
     return (
@@ -128,18 +156,33 @@ export default function DocumentDetailPage() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <Button asChild variant="accent" className="w-full">
-                <a href={document.download_url ?? "#"} target="_blank" rel="noreferrer">
+              {hasDownloadUrl ? (
+                <Button asChild variant="accent" className="w-full">
+                  <a href={document.download_url} target="_blank" rel="noreferrer">
+                    <Download className="h-4 w-4" />
+                    Download
+                  </a>
+                </Button>
+              ) : (
+                <Button variant="accent" className="w-full" disabled>
                   <Download className="h-4 w-4" />
-                  Download
-                </a>
-              </Button>
-              <Button asChild variant="secondary" className="w-full">
-                <a href={document.open_url ?? "#"} target="_blank" rel="noreferrer">
+                  Download unavailable
+                </Button>
+              )}
+
+              {hasOpenUrl ? (
+                <Button asChild variant="secondary" className="w-full">
+                  <a href={document.open_url} target="_blank" rel="noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                    Open
+                  </a>
+                </Button>
+              ) : (
+                <Button variant="secondary" className="w-full" disabled>
                   <ExternalLink className="h-4 w-4" />
-                  Open
-                </a>
-              </Button>
+                  Open unavailable
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -172,12 +215,19 @@ export default function DocumentDetailPage() {
               </div>
 
               <div className="flex justify-end">
-                <Button asChild variant="secondary">
-                  <a href={document.open_url ?? "#"} target="_blank" rel="noreferrer">
+                {hasOpenUrl ? (
+                  <Button asChild variant="secondary">
+                    <a href={document.open_url} target="_blank" rel="noreferrer">
+                      <ExternalLink className="h-4 w-4" />
+                      Open in new tab
+                    </a>
+                  </Button>
+                ) : (
+                  <Button variant="secondary" disabled>
                     <ExternalLink className="h-4 w-4" />
-                    Open in new tab
-                  </a>
-                </Button>
+                    Open unavailable
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>

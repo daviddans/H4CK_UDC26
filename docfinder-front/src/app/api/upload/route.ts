@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { NextResponse } from "next/server";
+import { upsertUploadRegistryEntry } from "@/server/upload-registry";
 
 export const runtime = "nodejs";
 
@@ -48,6 +49,22 @@ export async function POST(req: Request) {
   };
 
   const { docId, fullPath } = await saveFile(file);
+  const sourceName = path.basename(fullPath);
+  upsertUploadRegistryEntry({
+    doc_id: docId,
+    source_name: sourceName,
+    original_name: file.name || sourceName,
+    saved_path: fullPath,
+    doc_type: metadata.doc_type,
+    category: metadata.category,
+    tags: metadata.tags
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean),
+    lang: metadata.lang,
+    uploaded_at: new Date().toISOString(),
+  });
+
   const attempts: Array<{ url: string; init: RequestInit; label: string }> = [
     {
       url: `${baseUrl.replace(/\/$/, "")}/add-index?path=${encodeURIComponent(fullPath)}`,

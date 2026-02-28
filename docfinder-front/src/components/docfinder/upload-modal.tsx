@@ -39,6 +39,8 @@ export function UploadModal({ trigger, onUploaded }: UploadModalProps) {
   const [lang, setLang] = useState("en");
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [initLoading, setInitLoading] = useState(false);
+  const [initMessage, setInitMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -108,6 +110,31 @@ export function UploadModal({ trigger, onUploaded }: UploadModalProps) {
     }
   };
 
+  const onInitIndex = async () => {
+    setInitLoading(true);
+    setInitMessage(null);
+    setError(null);
+    try {
+      const response = await fetch("/api/init", { method: "POST" });
+      const payload = (await response.json()) as {
+        error?: string;
+        details?: string[];
+      };
+      if (!response.ok) {
+        throw new Error(
+          payload.error
+            ? `${payload.error}${payload.details?.[0] ? `: ${payload.details[0]}` : ""}`
+            : "Init failed"
+        );
+      }
+      setInitMessage("Index initialized in backend.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unexpected init error");
+    } finally {
+      setInitLoading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -125,6 +152,33 @@ export function UploadModal({ trigger, onUploaded }: UploadModalProps) {
             Drag and drop your file, classify it, and send it to the index pipeline.
           </DialogDescription>
         </DialogHeader>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200/90 bg-slate-50/90 px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+          <p className="text-xs text-slate-600 dark:text-slate-300">
+            Backend tools
+          </p>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onInitIndex}
+            disabled={initLoading || loading}
+          >
+            {initLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Initializing
+              </>
+            ) : (
+              "Init index"
+            )}
+          </Button>
+        </div>
+
+        {initMessage && (
+          <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+            {initMessage}
+          </p>
+        )}
 
         <label
           className="flex min-h-44 cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-center hover:border-cyan-300 hover:bg-cyan-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-cyan-500/60 dark:hover:bg-cyan-500/10"

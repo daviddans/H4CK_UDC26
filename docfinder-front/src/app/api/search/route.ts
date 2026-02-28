@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 
+import {
+  getBackendErrorDetails,
+  mapBackendHits,
+  searchBackendRaw,
+} from "@/server/backend-contract";
 import { cacheHits } from "@/store/search-cache";
 import type { DocumentHit, SearchApiResponse } from "@/types/docfinder";
 
@@ -18,114 +23,6 @@ type SearchBody = {
     sort?: "relevance" | "date";
   };
 };
-
-type BackendResponse = {
-  hits?: {
-    hits?: Array<{
-      _score?: number;
-      _source?: {
-        content?: string;
-        metadata?: {
-          source?: string;
-          chunk_id?: number | string;
-        };
-      };
-    }>;
-  };
-};
-
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-function formatTitle(source: string) {
-  const base = source.replace(/\.[a-z0-9]+$/i, "").replace(/[_-]+/g, " ").trim();
-  if (!base) {
-    return "Indexed Document";
-  }
-  return base.replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function makeDocId(source: string) {
-  const slug = source
-    .toLowerCase()
-    .replace(/\.[a-z0-9]+$/i, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return `BACK-${slug || "document"}`;
-}
-
-function makeSnippet(content: string, queryText: string) {
-  const clean = content.replace(/\s+/g, " ").trim();
-  const lowered = clean.toLowerCase();
-  const tokens = Array.from(
-    new Set(
-      queryText
-        .toLowerCase()
-        .split(/\s+/)
-        .map((token) => token.trim())
-        .filter((token) => token.length > 1)
-    )
-  );
-
-  let from = 0;
-  const firstIdx = tokens
-    .map((token) => lowered.indexOf(token))
-    .filter((idx) => idx >= 0)
-    .sort((a, b) => a - b)[0];
-  if (typeof firstIdx === "number") {
-    from = Math.max(0, firstIdx - 80);
-  }
-
-  let snippet = escapeHtml(clean.slice(from, from + 260));
-  for (const token of tokens) {
-    snippet = snippet.replace(
-      new RegExp(`(${escapeRegExp(token)})`, "gi"),
-      "<mark>$1</mark>"
-    );
-  }
-
-  const prefix = from > 0 ? "..." : "";
-  const suffix = from + 260 < clean.length ? "..." : "";
-  return `${prefix}${snippet}${suffix}`;
-}
-
-function mapBackendHits(payload: BackendResponse, queryText: string): DocumentHit[] {
-  const rawHits = payload.hits?.hits ?? [];
-  const now = new Date().toISOString().slice(0, 10);
-
-  return rawHits.map((hit, index) => {
-    const sourceName = hit._source?.metadata?.source ?? `document-${index + 1}.txt`;
-    const chunkRaw = hit._source?.metadata?.chunk_id ?? index;
-    const chunkId = Number(chunkRaw) || index;
-    const content = hit._source?.content ?? "";
-    const docId = makeDocId(sourceName);
-
-    return {
-      doc_id: docId,
-      chunk_id: `${docId}-${chunkId}`,
-      title: formatTitle(sourceName),
-      doc_type: sourceName.split(".").pop()?.toLowerCase() || "document",
-      category: "backend",
-      tags: ["indexed", "opensearch"],
-      page_start: chunkId + 1,
-      page_end: chunkId + 1,
-      lang: "unknown",
-      date: now,
-      score: Number(hit._score ?? 0),
-      snippet_html: makeSnippet(content, queryText),
-    };
-  });
-}
 
 function applyFilters(hits: DocumentHit[], filters: SearchBody["filters"]) {
   return hits.filter((hit) => {
@@ -185,59 +82,33 @@ export async function POST(req: Request) {
     );
   }
 
-  const backendAttempts = [
-    { querry: queryText },
-    { query: queryText },
-    { q: queryText },
-  ];
-  const backendPaths = ["/search", "/search%20"];
-  const errors: string[] = [];
+  try {
+    const backendPayload = await searchBackendRaw(baseUrl, queryText);
+    const mapped = mapBackendHits(backendPayload, queryText);
+    const sorted = applyFilters(mapped, body.filters).sort((a, b) =>
+      body.filters?.sort === "date" ? b.date.localeCompare(a.date) : b.score - a.score
+    );
 
-  for (const path of backendPaths) {
-    for (const payload of backendAttempts) {
-      try {
-        const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const paged = sorted.slice(start, end);
+    cacheHits(paged);
 
-        if (!response.ok) {
-          const text = await response.text();
-          errors.push(`${path} ${response.status}: ${text.slice(0, 200)}`);
-          continue;
-        }
-
-        const backendPayload = (await response.json()) as BackendResponse;
-        const mapped = mapBackendHits(backendPayload, queryText);
-        const sorted = applyFilters(mapped, body.filters).sort((a, b) =>
-          body.filters?.sort === "date" ? b.date.localeCompare(a.date) : b.score - a.score
-        );
-
-        const start = (page - 1) * pageSize;
-        const end = start + pageSize;
-        const paged = sorted.slice(start, end);
-        cacheHits(paged);
-
-        return NextResponse.json({
-          hits: paged,
-          total: sorted.length,
-          page,
-          pageSize,
-          hasMore: end < sorted.length,
-          available: buildAvailable(mapped),
-        } satisfies SearchApiResponse);
-      } catch (error) {
-        errors.push(error instanceof Error ? error.message : "Network error");
-      }
-    }
+    return NextResponse.json({
+      hits: paged,
+      total: sorted.length,
+      page,
+      pageSize,
+      hasMore: end < sorted.length,
+      available: buildAvailable(mapped),
+    } satisfies SearchApiResponse);
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Backend search failed.",
+        details: getBackendErrorDetails(error),
+      },
+      { status: 502 }
+    );
   }
-
-  return NextResponse.json(
-    {
-      error: "Backend search failed.",
-      details: errors,
-    },
-    { status: 502 }
-  );
 }

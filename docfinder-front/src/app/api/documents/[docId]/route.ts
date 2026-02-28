@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getUploadRegistryEntryByDocId } from "@/server/upload-registry";
 import { getCachedDocumentById } from "@/store/search-cache";
 
 export async function GET(
@@ -13,6 +14,15 @@ export async function GET(
     return NextResponse.json({ error: "Document not found" }, { status: 404 });
   }
 
+  const entry = getUploadRegistryEntryByDocId(params.docId);
+  const enriched = entry
+    ? {
+        ...document,
+        open_url: `/api/files/${params.docId}?disposition=inline`,
+        download_url: `/api/files/${params.docId}?disposition=attachment`,
+      }
+    : document;
+
   await new Promise((resolve) => setTimeout(resolve, 120));
-  return NextResponse.json(document);
+  return NextResponse.json(enriched);
 }

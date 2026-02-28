@@ -86,7 +86,11 @@ export default function HomePage() {
     }
 
     const controller = new AbortController();
+    let disposed = false;
     const timeout = window.setTimeout(async () => {
+      if (disposed) {
+        return;
+      }
       setLoading(true);
       setSearchError(null);
       try {
@@ -121,16 +125,29 @@ export default function HomePage() {
           throw new Error(details ? `${reason}: ${details}` : reason);
         }
 
-        setData(payload as SearchApiResponse);
+        if (!disposed) {
+          setData(payload as SearchApiResponse);
+        }
       } catch (error) {
-        setSearchError(error instanceof Error ? error.message : "Search request failed");
-        setData((prev) => ({ ...prev, hits: [], total: 0, hasMore: false }));
+        const isAbort =
+          (error instanceof DOMException && error.name === "AbortError") ||
+          (error instanceof Error && error.name === "AbortError");
+        if (isAbort) {
+          return;
+        }
+        if (!disposed) {
+          setSearchError(error instanceof Error ? error.message : "Search request failed");
+          setData((prev) => ({ ...prev, hits: [], total: 0, hasMore: false }));
+        }
       } finally {
-        setLoading(false);
+        if (!disposed) {
+          setLoading(false);
+        }
       }
     }, 280);
 
     return () => {
+      disposed = true;
       controller.abort();
       window.clearTimeout(timeout);
     };
@@ -147,15 +164,27 @@ export default function HomePage() {
         body: JSON.stringify({ question }),
       });
 
-      const payload = (await response.json()) as AskResponse;
+      const payload = (await response.json()) as
+        | AskResponse
+        | { error?: string; details?: string[] };
       if (!response.ok) {
-        throw new Error("Ask failed");
+        const reason =
+          (typeof payload === "object" && payload && "error" in payload && payload.error) ||
+          "Ask failed";
+        const details =
+          typeof payload === "object" &&
+          payload &&
+          "details" in payload &&
+          Array.isArray(payload.details)
+            ? payload.details[0]
+            : undefined;
+        throw new Error(details ? `${reason}: ${details}` : reason);
       }
 
-      setAskResponse(payload);
-    } catch {
+      setAskResponse(payload as AskResponse);
+    } catch (error) {
       setAskResponse({
-        answer: "Request failed. Check backend /ask endpoint status and try again.",
+        answer: error instanceof Error ? error.message : "Ask request failed",
         citations: [],
       });
     } finally {
