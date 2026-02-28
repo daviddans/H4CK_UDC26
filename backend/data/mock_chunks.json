@@ -1,0 +1,297 @@
+[
+  {
+    "chunk_id": "c001",
+    "doc_id": "d001",
+    "title": "Contrato de suministro - Proveedor X",
+    "page_start": 7,
+    "page_end": 7,
+    "lang": "es",
+    "doc_type": "contract",
+    "category": "legal",
+    "tags": ["proveedor-x", "penalizacion", "retraso", "entrega"],
+    "text": "Penalización por retraso: si el Proveedor incurre en demora en la entrega, se aplicará una penalización del 2% del importe semanal por cada semana de retraso, con un máximo del 10% del importe total del pedido."
+  },
+  {
+    "chunk_id": "c002",
+    "doc_id": "d001",
+    "title": "Contrato de suministro - Proveedor X",
+    "page_start": 8,
+    "page_end": 8,
+    "lang": "es",
+    "doc_type": "contract",
+    "category": "legal",
+    "tags": ["proveedor-x", "plazo", "entrega", "pedido"],
+    "text": "Plazo de entrega: el plazo estándar será de 30 días naturales desde la fecha de confirmación del pedido. Cualquier modificación del plazo deberá acordarse por escrito entre las partes."
+  },
+  {
+    "chunk_id": "c003",
+    "doc_id": "d001",
+    "title": "Contrato de suministro - Proveedor X",
+    "page_start": 10,
+    "page_end": 10,
+    "lang": "es",
+    "doc_type": "contract",
+    "category": "legal",
+    "tags": ["proveedor-x", "confidencialidad", "nda"],
+    "text": "Confidencialidad: las Partes se obligan a mantener en estricta confidencialidad toda información técnica, comercial o de cualquier otra naturaleza a la que accedan durante la vigencia del contrato. Esta obligación permanecerá durante 3 años tras su finalización."
+  },
+
+  {
+    "chunk_id": "c004",
+    "doc_id": "d002",
+    "title": "Service Agreement - Customer Y",
+    "page_start": 3,
+    "page_end": 3,
+    "lang": "en",
+    "doc_type": "contract",
+    "category": "legal",
+    "tags": ["customer-y", "penalty", "late-delivery", "sla"],
+    "text": "Late delivery penalty: if the Provider fails to meet the agreed delivery date, a penalty of 1.5% of the weekly service fee will apply per week of delay, capped at 8% of the total monthly fee."
+  },
+  {
+    "chunk_id": "c005",
+    "doc_id": "d002",
+    "title": "Service Agreement - Customer Y",
+    "page_start": 4,
+    "page_end": 4,
+    "lang": "en",
+    "doc_type": "contract",
+    "category": "legal",
+    "tags": ["customer-y", "termination", "notice-period"],
+    "text": "Termination: either party may terminate this agreement with 30 days' written notice. In case of material breach, termination may be immediate if the breach is not cured within 10 business days."
+  },
+  {
+    "chunk_id": "c006",
+    "doc_id": "d002",
+    "title": "Service Agreement - Customer Y",
+    "page_start": 6,
+    "page_end": 6,
+    "lang": "en",
+    "doc_type": "contract",
+    "category": "legal",
+    "tags": ["customer-y", "confidentiality", "data"],
+    "text": "Confidentiality: each party shall keep confidential all non-public information obtained in connection with this agreement. This obligation survives for 2 years after termination, except for trade secrets which remain protected as long as applicable law provides."
+  },
+
+  {
+    "chunk_id": "c007",
+    "doc_id": "d003",
+    "title": "Ficha técnica - Producto Z",
+    "page_start": 2,
+    "page_end": 2,
+    "lang": "es",
+    "doc_type": "datasheet",
+    "category": "technical",
+    "tags": ["producto-z", "garantia", "especificaciones"],
+    "text": "Garantía: el Producto Z dispone de 24 meses de garantía desde la fecha de compra. Tensión de entrada: 220–240V AC. Temperatura de operación: 0–40°C. Protección: IP54."
+  },
+  {
+    "chunk_id": "c008",
+    "doc_id": "d003",
+    "title": "Ficha técnica - Producto Z",
+    "page_start": 3,
+    "page_end": 3,
+    "lang": "es",
+    "doc_type": "datasheet",
+    "category": "technical",
+    "tags": ["producto-z", "instalacion", "seguridad"],
+    "text": "Instalación y seguridad: la instalación debe realizarse con el equipo desconectado de la red eléctrica. No se recomienda el uso en entornos con condensación. Se debe respetar la polaridad de conexiones según el esquema del fabricante."
+  },
+  {
+    "chunk_id": "c009",
+    "doc_id": "d003",
+    "title": "Ficha técnica - Producto Z",
+    "page_start": 4,
+    "page_end": 4,
+    "lang": "es",
+    "doc_type": "datasheet",
+    "category": "technical",
+    "tags": ["producto-z", "mantenimiento", "limpieza"],
+    "text": "Mantenimiento: limpiar con un paño seco y evitar disolventes. Revisar conexiones cada 6 meses. En caso de fallo, contactar con el servicio técnico autorizado; la manipulación por personal no autorizado puede invalidar la garantía."
+  },
+
+  {
+    "chunk_id": "c010",
+    "doc_id": "d004",
+    "title": "Propuesta de presupuesto - Proyecto Alpha",
+    "page_start": 1,
+    "page_end": 1,
+    "lang": "es",
+    "doc_type": "proposal",
+    "category": "finance",
+    "tags": ["proyecto-alpha", "presupuesto", "coste"],
+    "text": "Presupuesto total: 50.000 EUR (sin IVA). Incluye consultoría, implantación, formación y soporte durante 3 meses. El cronograma estimado es de 6 semanas desde la aprobación."
+  },
+  {
+    "chunk_id": "c011",
+    "doc_id": "d004",
+    "title": "Propuesta de presupuesto - Proyecto Alpha",
+    "page_start": 2,
+    "page_end": 2,
+    "lang": "es",
+    "doc_type": "proposal",
+    "category": "finance",
+    "tags": ["proyecto-alpha", "pagos", "condiciones"],
+    "text": "Condiciones de pago: 40% a la aceptación de la propuesta, 40% al finalizar la implantación y 20% tras la entrega y validación. Plazo de pago: 30 días desde la fecha de factura."
+  },
+  {
+    "chunk_id": "c012",
+    "doc_id": "d004",
+    "title": "Propuesta de presupuesto - Proyecto Alpha",
+    "page_start": 3,
+    "page_end": 3,
+    "lang": "es",
+    "doc_type": "proposal",
+    "category": "finance",
+    "tags": ["proyecto-alpha", "alcance", "exclusiones"],
+    "text": "Alcance y exclusiones: el presupuesto no incluye licencias de terceros ni costes de infraestructura. Cambios de alcance deberán reflejarse en una adenda aprobada por ambas partes antes de su ejecución."
+  },
+
+  {
+    "chunk_id": "c013",
+    "doc_id": "d005",
+    "title": "Factura 2026-014 - Cliente Z",
+    "page_start": 1,
+    "page_end": 1,
+    "lang": "es",
+    "doc_type": "invoice",
+    "category": "finance",
+    "tags": ["cliente-z", "factura", "iva", "vencimiento"],
+    "text": "Factura 2026-014. Base imponible: 12.000 EUR. IVA (21%): 2.520 EUR. Total: 14.520 EUR. Vencimiento: 2026-03-31. Forma de pago: transferencia bancaria."
+  },
+  {
+    "chunk_id": "c014",
+    "doc_id": "d005",
+    "title": "Factura 2026-014 - Cliente Z",
+    "page_start": 1,
+    "page_end": 1,
+    "lang": "es",
+    "doc_type": "invoice",
+    "category": "finance",
+    "tags": ["cliente-z", "concepto", "servicio"],
+    "text": "Concepto: servicios de mantenimiento y soporte (enero–febrero 2026). Referencia de pedido: PO-8831. Observaciones: cualquier incidencia debe notificarse en un plazo máximo de 7 días."
+  },
+  {
+    "chunk_id": "c015",
+    "doc_id": "d005",
+    "title": "Factura 2026-014 - Cliente Z",
+    "page_start": 2,
+    "page_end": 2,
+    "lang": "es",
+    "doc_type": "invoice",
+    "category": "finance",
+    "tags": ["cliente-z", "pago", "recargo"],
+    "text": "En caso de impago a vencimiento, podrán aplicarse recargos por demora conforme a la legislación vigente y los acuerdos comerciales establecidos con el Cliente."
+  },
+
+  {
+    "chunk_id": "c016",
+    "doc_id": "d006",
+    "title": "Internal Policy - Information Security",
+    "page_start": 5,
+    "page_end": 5,
+    "lang": "en",
+    "doc_type": "policy",
+    "category": "legal",
+    "tags": ["security", "policy", "access-control"],
+    "text": "Access control: user access must follow the principle of least privilege. All privileged accounts require multi-factor authentication. Access reviews must be performed at least every 90 days."
+  },
+  {
+    "chunk_id": "c017",
+    "doc_id": "d006",
+    "title": "Internal Policy - Information Security",
+    "page_start": 7,
+    "page_end": 7,
+    "lang": "en",
+    "doc_type": "policy",
+    "category": "legal",
+    "tags": ["security", "policy", "incident-response"],
+    "text": "Incident response: security incidents must be reported within 24 hours of detection. The incident handler shall document containment actions, evidence collection, and lessons learned."
+  },
+  {
+    "chunk_id": "c018",
+    "doc_id": "d006",
+    "title": "Internal Policy - Information Security",
+    "page_start": 9,
+    "page_end": 9,
+    "lang": "en",
+    "doc_type": "policy",
+    "category": "legal",
+    "tags": ["security", "policy", "data-retention"],
+    "text": "Data retention: logs from critical systems must be retained for 180 days. Backups must be encrypted at rest and tested monthly to ensure recoverability."
+  },
+
+  {
+    "chunk_id": "c019",
+    "doc_id": "d007",
+    "title": "Informe técnico - Incidencia red 2026-02",
+    "page_start": 2,
+    "page_end": 2,
+    "lang": "es",
+    "doc_type": "report",
+    "category": "technical",
+    "tags": ["red", "incidencia", "latencia"],
+    "text": "Resumen de incidencia: se detectó un aumento de latencia en el enlace principal durante 35 minutos. La causa probable fue congestión en el switch de agregación. Se aplicó priorización de tráfico de voz para mitigar impacto."
+  },
+  {
+    "chunk_id": "c020",
+    "doc_id": "d007",
+    "title": "Informe técnico - Incidencia red 2026-02",
+    "page_start": 3,
+    "page_end": 3,
+    "lang": "es",
+    "doc_type": "report",
+    "category": "technical",
+    "tags": ["red", "acciones", "mitigacion"],
+    "text": "Acciones realizadas: ajuste de colas en el switch (LLQ para voz y CBWFQ para datos), revisión de métricas de pérdida de paquetes y jitter, y validación del rendimiento tras el cambio."
+  },
+  {
+    "chunk_id": "c021",
+    "doc_id": "d007",
+    "title": "Informe técnico - Incidencia red 2026-02",
+    "page_start": 4,
+    "page_end": 4,
+    "lang": "es",
+    "doc_type": "report",
+    "category": "technical",
+    "tags": ["red", "recomendaciones", "monitorizacion"],
+    "text": "Recomendaciones: habilitar alertas de congestión, aumentar capacidad de uplinks en horas punta y mantener un seguimiento semanal de latencia y pérdida. Se recomienda evaluar WRED para tráfico best-effort."
+  },
+
+  {
+    "chunk_id": "c022",
+    "doc_id": "d008",
+    "title": "Email - Confirmación de pedido PO-8831",
+    "page_start": 1,
+    "page_end": 1,
+    "lang": "es",
+    "doc_type": "email",
+    "category": "operations",
+    "tags": ["pedido", "po-8831", "confirmacion"],
+    "text": "Confirmamos la recepción del pedido PO-8831. La fecha estimada de entrega es el 2026-03-15. Cualquier modificación deberá comunicarse antes de 48 horas para poder actualizar logística."
+  },
+  {
+    "chunk_id": "c023",
+    "doc_id": "d008",
+    "title": "Email - Confirmación de pedido PO-8831",
+    "page_start": 1,
+    "page_end": 1,
+    "lang": "es",
+    "doc_type": "email",
+    "category": "operations",
+    "tags": ["pedido", "po-8831", "contacto"],
+    "text": "Para consultas sobre el pedido, contactar con logística en la extensión 204. Recordamos que la entrega se realizará en horario de 9:00 a 14:00 en el almacén central."
+  },
+  {
+    "chunk_id": "c024",
+    "doc_id": "d008",
+    "title": "Email - Confirmación de pedido PO-8831",
+    "page_start": 2,
+    "page_end": 2,
+    "lang": "es",
+    "doc_type": "email",
+    "category": "operations",
+    "tags": ["pedido", "incidencias", "devoluciones"],
+    "text": "Incidencias y devoluciones: si el material presenta daños visibles, debe registrarse en el albarán en el momento de la entrega. Las devoluciones requieren autorización previa y número RMA."
+  }
+]
