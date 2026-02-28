@@ -237,12 +237,14 @@ def _ask_core(payload: AskRequest):
 
 
 @app.post("/init")
+@app.get("/init")
 def init_index():
     manager.init_index(INDEX_NAME)
     return {"estado": "ok", "index": INDEX_NAME}
 
 
 @app.post("/add-index")
+@app.get("/add-index")
 def add_index_get(path: str = Query(..., description="Absolute or relative file path")):
     _ensure_index(INDEX_NAME)
     _index_file_from_path(path)
@@ -250,6 +252,7 @@ def add_index_get(path: str = Query(..., description="Absolute or relative file 
 
 
 @app.post("/add-index")
+@app.get("/add-index")
 def add_index_post(payload: AddIndexRequest):
     file_path = payload.path or (payload.file.path if payload.file else None)
     if not file_path:
@@ -261,6 +264,7 @@ def add_index_post(payload: AddIndexRequest):
 
 
 @app.post("/search")
+@app.get("/search")
 def search_file(payload: SearchRequest):
     query_text = _get_query_text(payload)
     if not query_text:
