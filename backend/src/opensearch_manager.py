@@ -1,7 +1,7 @@
 import os
 from opensearchpy import OpenSearch, helpers
 from sentence_transformers import SentenceTransformer
-from readpdf import limpiar_pdf
+from readpdf import limpiar
 from text_utils import crear_chunks
 
 
@@ -22,37 +22,42 @@ class OpenSearchManager:
             self.model = SentenceTransformer("intfloat/multilingual-e5-small")
             print("Modelo Multilingual E5 cargado.")
 
-            # Intentamos crear el pipeline de RRF al iniciar
+            # Creamos/Actualizamos el pipeline híbrido al iniciar
             self.create_rrf_pipeline()
         except Exception as e:
             print(f"Error en inicialización: {e}")
             raise
 
     def create_rrf_pipeline(self, pipeline_id="rrf-hybrid-pipeline"):
-        """Configura un Search Pipeline con técnica RRF en OpenSearch."""
+        """
+        Configura un Pipeline Híbrido con normalización Min-Max y pesos.
+        Se usa arithmetic_mean para evitar errores de compatibilidad con RRF directo.
+        """
         pipeline_body = {
-            "description": "Pipeline para combinar BM25 y k-NN usando RRF",
+            "description": "Pipeline para combinar BM25 y k-NN con pesos optimizados",
             "phase_results_processors": [
                 {
                     "normalization-processor": {
                         "normalization": {"technique": "min_max"},
                         "combination": {
-                            "technique": "rrf",
+                            "technique": "arithmetic_mean",
                             "parameters": {
-                                "rank_constant": 60
-                            },  # Valor estándar para RRF
+                                "weights": [0.7, 0.3]  # 30% Léxico, 70% Semántico
+                            },
                         },
                     }
                 }
             ],
         }
         try:
+            # Intentamos eliminar el pipeline previo si existe para asegurar la actualización
+            if self.client.search_pipeline.get(id=pipeline_id, ignore=[404]):
+                self.client.search_pipeline.delete(id=pipeline_id)
+
             self.client.search_pipeline.put(id=pipeline_id, body=pipeline_body)
-            print(f"Pipeline '{pipeline_id}' configurado correctamente.")
+            print(f"Pipeline '{pipeline_id}' configurado con éxito (Pesos: 0.3/0.7).")
         except Exception as e:
-            print(
-                f"Aviso: No se pudo crear el pipeline (puede que ya exista o falte el plugin): {e}"
-            )
+            print(f"Error configurando el pipeline: {e}")
 
     def init_index(self, index_name):
         """Crea el índice optimizado para vectores de 384 dimensiones."""
@@ -62,7 +67,7 @@ class OpenSearchManager:
             },
             "mappings": {
                 "properties": {
-                    "content": {"type": "text"},  # Necesario para la búsqueda clásica
+                    "content": {"type": "text"},
                     "embedding": {
                         "type": "knn_vector",
                         "dimension": 384,
@@ -88,16 +93,20 @@ class OpenSearchManager:
 
     def index_pdf(self, index_name, file_path):
         """Indexación con prefijo 'passage:' para E5."""
-        # ... (La lógica de indexación se mantiene igual que en tu archivo original)
         if not os.path.exists(file_path):
+            print(f"Error: No se encuentra el archivo {file_path}")
             return
-        texto = limpiar_pdf(file_path)
+
+        texto = limpiar(file_path)
         if not texto:
+            print("El PDF está vacío o no se pudo limpiar.")
             return
+
         chunks = crear_chunks(texto)
 
         def acciones_bulk():
             for i, chunk in enumerate(chunks):
+                # E5 requiere el prefijo 'passage: ' para indexar
                 texto_para_embedding = f"passage: {chunk}"
                 vector = self.model.encode(texto_para_embedding).tolist()
                 yield {
@@ -113,17 +122,17 @@ class OpenSearchManager:
                 }
 
         helpers.bulk(self.client, acciones_bulk())
-        print(f"Documento '{os.path.basename(file_path)}' indexado.")
+        print(f"Documento '{os.path.basename(file_path)}' indexado correctamente.")
 
     def hybrid_search_rrf(self, index_name, query_text, top_k=5):
-        """Búsqueda híbrida usando el pipeline RRF."""
+        """Búsqueda híbrida usando el pipeline configurado."""
         try:
-            # Prefijo 'query:' para la parte semántica con E5
+            # E5 requiere el prefijo 'query: ' para buscar
             vector_busqueda = self.model.encode(f"query: {query_text}").tolist()
 
             query_body = {
                 "size": top_k,
-                "_source": {"exclude": ["embedding"]},  # Ahorrar ancho de banda
+                "_source": {"exclude": ["embedding"]},
                 "query": {
                     "hybrid": {
                         "queries": [
@@ -139,12 +148,12 @@ class OpenSearchManager:
                     }
                 },
             }
-            # Es vital pasar el parámetro search_pipeline
+
             return self.client.search(
                 index=index_name,
                 body=query_body,
                 params={"search_pipeline": "rrf-hybrid-pipeline"},
             )
         except Exception as e:
-            print(f"Error en búsqueda RRF: {e}")
+            print(f"Error en búsqueda híbrida: {e}")
             return None
