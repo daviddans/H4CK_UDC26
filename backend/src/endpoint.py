@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from ollama_manager import OllamaManager
 from opensearch_manager import OpenSearchManager
+from readpdf import limpiar
 
 
 manager = OpenSearchManager()
@@ -121,6 +122,42 @@ def _ensure_index(index_name: str):
         manager.init_index(index_name)
 
 
+def _index_file_from_path(file_path: str):
+    if not file_path:
+        raise HTTPException(status_code=400, detail="Missing file path")
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
+
+    try:
+        extracted = limpiar(file_path)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to extract text/metadata from file: {exc}",
+        )
+
+    text = extracted.get("text")
+    if not text:
+        raise HTTPException(
+            status_code=400,
+            detail="File was processed but no text content could be extracted",
+        )
+
+    try:
+        manager.index_pdf(
+            index_name=INDEX_NAME,
+            file_path=file_path,
+            texto=text,
+            autor=extracted.get("autor", "Desconocido"),
+            creation_date=extracted.get("creation_date", "1970-01-01"),
+            lang=extracted.get("lang", "es"),
+            tags=[],
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Indexing failed: {exc}")
+
+
 def _ask_core(payload: AskRequest):
     search_text = _get_search_text(payload)
     question = payload.question or search_text
@@ -209,7 +246,7 @@ def init_index():
 @app.get("/add-index")
 def add_index_get(path: str = Query(..., description="Absolute or relative file path")):
     _ensure_index(INDEX_NAME)
-    manager.index_pdf(INDEX_NAME, path)
+    _index_file_from_path(path)
     return {"estado": "ok", "path": path, "index": INDEX_NAME}
 
 
@@ -220,7 +257,7 @@ def add_index_post(payload: AddIndexRequest):
         raise HTTPException(status_code=400, detail="Missing file path")
 
     _ensure_index(INDEX_NAME)
-    manager.index_pdf(INDEX_NAME, file_path)
+    _index_file_from_path(file_path)
     return {"estado": "ok", "path": file_path, "index": INDEX_NAME}
 
 
