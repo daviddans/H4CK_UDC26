@@ -1,15 +1,22 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-import index
-import search
 from opensearchpy import OpenSearch
+from opensearch_manager import OpenSearchManager
 
+
+manager = OpenSearchManager()
 app = FastAPI()
-INDEXNAME = "my-index"
+index = None
+
+INDEX_NAME = "my-index"
 
 
 class SearchFile(BaseModel):
     path: str
+
+
+class Querry(BaseModel):
+    querry: str
 
 
 client = OpenSearch(
@@ -21,12 +28,18 @@ client = OpenSearch(
 )
 
 
-@app.get("/index")
-def generate_index():
-    status = index.create_index(client, INDEXNAME)
+@app.get("/init")
+def init_index():
+    manager.init_index(INDEX_NAME)
+    return {"estado": "ok"}
+
+
+@app.get("/add-index")
+def generate_index(file: SearchFile):
+    manager.index_pdf(INDEX_NAME, file)
     return {"estado": "ok"}
 
 
 @app.post("/search ")
-def search_file(query: SearchFile):
-    return search.search(client, INDEXNAME, query)
+def search_file(query: Querry):
+    return manager.hybrid_search_rrf(INDEX_NAME, query)
