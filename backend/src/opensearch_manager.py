@@ -4,6 +4,8 @@ from sentence_transformers import SentenceTransformer
 from readpdf import limpiar
 from text_utils import crear_chunks
 
+TOTAL_QUERRY_SIZE = 1000
+
 
 class OpenSearchManager:
     def __init__(
@@ -129,7 +131,7 @@ class OpenSearchManager:
             vector_busqueda = self.model.encode(f"query: {query_text}").tolist()
 
             query_body = {
-                "size": top_k,
+                "size": TOTAL_QUERRY_SIZE,
                 "_source": {"exclude": ["embedding"]},
                 "query": {
                     "hybrid": {
