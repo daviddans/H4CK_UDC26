@@ -1,21 +1,19 @@
-from opensearchpy import OpenSearch
+from opensearchpy import OpenSearch, client
 
 
 # Create an index with specific settings and mappings
 def create_index(client, index_name):
     """Creates an index with specific settings if it doesn't exist."""
-    settings = {
-        "settings": {"index": {"number_of_shards": 1, "number_of_replicas": 0}},
-        "mappings": {
-            "properties": {
-                "title": {"type": "text"},
-                "tags": {"type": "keyword"},
-                "view_count": {"type": "integer"},
-            }
-        },
+    index_body = {
+      'settings': {
+        'index': {
+          'number_of_shards': 4
+        }
+      }
     }
+     
     if not client.indices.exists(index=index_name):
-        client.indices.create(index=index_name, body=settings)
+        client.indices.create(index=index_name, body=index_body)
         print(f"Created index: {index_name}")
         return 0
     else:
