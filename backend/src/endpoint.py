@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from ollama_manager import OllamaManager
 from opensearch_manager import OpenSearchManager
-from readpdf import limpiar
+from parser import limpiar
 
 
 manager = OpenSearchManager()
@@ -236,14 +236,13 @@ def _ask_core(payload: AskRequest):
     return {"answer": answer, "citations": citations}
 
 
-@app.get("/init")
 @app.post("/init")
 def init_index():
     manager.init_index(INDEX_NAME)
     return {"estado": "ok", "index": INDEX_NAME}
 
 
-@app.get("/add-index")
+@app.post("/add-index")
 def add_index_get(path: str = Query(..., description="Absolute or relative file path")):
     _ensure_index(INDEX_NAME)
     _index_file_from_path(path)
@@ -262,7 +261,6 @@ def add_index_post(payload: AddIndexRequest):
 
 
 @app.post("/search")
-@app.post("/search ")
 def search_file(payload: SearchRequest):
     query_text = _get_query_text(payload)
     if not query_text:
@@ -280,7 +278,6 @@ def search_file(payload: SearchRequest):
     return result
 
 
-@app.post("/ask")
 @app.post("/ask_ai")
 def ask_file(payload: AskRequest):
     return _ask_core(payload)
