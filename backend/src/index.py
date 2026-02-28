@@ -1,7 +1,7 @@
 from opensearchpy import OpenSearch
-from opensearch_dsl import Document, Text, Keyword
 
-#Create an index with specific settings and mappings
+
+# Create an index with specific settings and mappings
 def create_index(client, index_name):
     """Creates an index with specific settings if it doesn't exist."""
     settings = {

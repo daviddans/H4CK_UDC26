@@ -1,16 +1,11 @@
 from opensearchpy import OpenSearch, helpers
 import sys
+from opensearch_dsl import Document, Text, Keyword
+
 
 class PdfDoc(Document):
-    
-    def __init__(index_name):
-        self.index_name = index_name
-
     authorName = Keyword()
     content = Text()
-
-    class Index:
-        name = self.index_name
 
     def save(self, *args, **kwargs):
         return super(PdfDoc, self).save(*args, **kwargs)
