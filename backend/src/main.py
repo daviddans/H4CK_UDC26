@@ -3,6 +3,7 @@ from opensearch_manager import OpenSearchManager
 
 INDEX_NAME = "mi-archivo-inteligente"
 
+
 def main():
     if len(sys.argv) < 2:
         print("\nComandos disponibles:")
@@ -32,15 +33,21 @@ def main():
             print("Error: ¿Qué quieres buscar?")
         else:
             busqueda = " ".join(sys.argv[2:])
-            res = manager.semantic_search(INDEX_NAME, busqueda)
-            if res:
-                print(f"\n--- Resultados para: '{busqueda}' ---")
-                for hit in res['hits']['hits']:
-                    score = hit['_score']
-                    src = hit['_source']['metadata']['source']
-                    txt = hit['_source']['content'][:200]
-                    print(f"ID: {src} | Similitud: {score:.4f}")
-                    print(f"Texto: {txt}...\n")
+            # Llamamos a la nueva función con RRF
+            res = manager.hybrid_search_rrf(INDEX_NAME, busqueda)
+
+            if res and res["hits"]["hits"]:
+                print(f"\n--- Resultados (RRF Hybrid) para: '{busqueda}' ---")
+                for hit in res["hits"]["hits"]:
+                    score = hit["_score"]
+                    src = hit["_source"]["metadata"]["source"]
+                    txt = hit["_source"]["content"][:200]
+                    print(f"ID: {src} | Score RRF: {score:.6f}")
+                    print(f"Texto: {txt}...\n" + "-" * 40)
+            else:
+                print("No se encontraron resultados.")
+
 
 if __name__ == "__main__":
     main()
+
