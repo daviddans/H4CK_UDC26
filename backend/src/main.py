@@ -2,24 +2,25 @@ import sys
 
 from opensearch_dsl import query
 import index
-import indexer  
+import indexer
 import search
 from opensearchpy import OpenSearch
 
 INDEXNAME = "my-index"
 
-#Entry point for the aplication cli
+
+# Entry point for the aplication cli
 def main(argc, argv):
     status = 0
 
     # Connect to OpenSearch with SSL and authentication
     try:
         client = OpenSearch(
-            hosts=[{'host': 'localhost', 'port': 9200}],
-            http_auth=('admin', 'ComplexPassword123!'),
+            hosts=[{"host": "localhost", "port": 9200}],
+            http_auth=("admin", "ComplexPassword123!"),
             use_ssl=True,
             verify_certs=False,  # Necessary for local self-signed certs
-            ssl_show_warn=False
+            ssl_show_warn=False,
         )
     except Exception as e:
         print(f"Error connecting to OpenSearch: {e}")
@@ -48,7 +49,9 @@ def main(argc, argv):
     if command == "search":
         query = argv[2] if argc > 2 else None
         if not query:
-            print("Please provide a query to search. Usage: python main.py search <query>")
+            print(
+                "Please provide a query to search. Usage: python main.py search <query>"
+            )
             return -1
         search.search(client, INDEXNAME, query)
     else:
@@ -57,5 +60,8 @@ def main(argc, argv):
 
     print("Command executed successfully - none left to do.")
     return status
+
+
 if __name__ == "__main__":
     main(len(sys.argv), sys.argv)
+
