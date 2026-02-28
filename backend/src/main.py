@@ -1,4 +1,5 @@
 import sys
+from opensearch_manager import OpenSearchManager
 
 INDEX_NAME = "mi-archivo-inteligente"
 
