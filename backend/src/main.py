@@ -3,13 +3,21 @@ from opensearch_manager import OpenSearchManager
 
 INDEX_NAME = "mi-archivo-inteligente"
 
-
 INDEXNAME = "my-index"
 
-    try:
-        manager = OpenSearchManager()
-    except:
+
+def main():
+    if len(sys.argv) < 2:
+        print("\n--- Mi Archivo Inteligente (Híbrido) ---")
+        print("Comandos disponibles:")
+        print("  python main.py init              -> Configurar índice y pipeline RRF")
+        print("  python main.py index <ruta.pdf>  -> Indexar un PDF")
+        print(
+            "  python main.py search <texto>    -> Búsqueda de alta precisión (3 vías)"
+        )
         return
+
+    manager = OpenSearchManager()
 
     comando = sys.argv[1].lower()
 
