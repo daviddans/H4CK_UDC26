@@ -24,4 +24,4 @@ volumes:
   opensearch-data:
 
 networks:
-  opensearch-net:s
+  opensearch-net: {}
