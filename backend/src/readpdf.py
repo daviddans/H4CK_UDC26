@@ -1,3 +1,6 @@
+from PIL import Image
+from pdf2image import convert_from_path
+import pytesseract
 import pandas as pd
 from io import StringIO
 import os
@@ -151,6 +154,34 @@ def unir_lineas(texto):
     return texto
 
 """
+Devuelve una lista de listas de lineas (cada lista corresponde a una pagina)
+"""
+def extraer_lineas_pdf(ruta_pdf, idioma="spa"):
+
+    # 1️⃣ Convertir el PDF en imágenes (una imagen por página)
+    paginas = convert_from_path(ruta_pdf)
+    
+    # 2️⃣ Lista final que contendrá todas las páginas
+    lista_listas_paginas = []
+
+    # 3️⃣ Procesar cada página
+    for pagina in paginas:
+        # Aplicar OCR a la imagen de la página
+        texto = pytesseract.image_to_string(pagina, lang=idioma)
+
+        # Separar el texto en líneas y eliminar líneas vacías
+        lineas = []
+        for linea in texto.splitlines():
+            linea = linea.strip()  # Quitar espacios al inicio y final
+            if linea:              # Solo añadir si no está vacía
+                lineas.append(linea)
+
+        # Añadir las líneas de esta página a la lista final
+        lista_listas_paginas.append(lineas)
+
+    return lista_listas_paginas
+
+"""
 Funcion general que realizara todo el proceso llamando a otras funciones
 """
 def limpiar(ruta):
@@ -160,14 +191,19 @@ def limpiar(ruta):
     if ext == ".pdf":
         # Esto es lo que hay que hacer con un PDF normal
         paginas = extraer_paginas(ruta)
-        
+
         texto = limpiar_headers_footers(paginas)
         texto = normalizar_espacios(texto)
         texto = unir_lineas(texto)
 
-        #if not texto:
-            # Logica de PDF escaneado
-    
+        
+        if not texto:
+            paginas = extraer_lineas_pdf(ruta)
+        
+            texto = limpiar_headers_footers(paginas)
+            texto = normalizar_espacios(texto)
+            texto = unir_lineas(texto)
+
     elif ext in [".txt", ".csv", ".xlsx"]:
         if ext == ".xlsx":
             # Cargar la primera hoja del Excel
