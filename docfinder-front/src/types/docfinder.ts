@@ -1,6 +1,10 @@
 export type SearchMode = "search" | "ask";
 
-export type SortMode = "relevance" | "date";
+export type SortMode =
+  | "relevance_desc"
+  | "relevance_asc"
+  | "date_desc"
+  | "date_asc";
 
 export type ResultsView = "grid" | "list";
 
@@ -23,7 +27,6 @@ export type DocumentHit = {
 
 export type SearchFilters = {
   doc_type: string[];
-  category: string[];
   tags: string[];
   lang: string[];
   from?: string;

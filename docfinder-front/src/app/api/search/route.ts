@@ -6,7 +6,7 @@ import {
   searchBackendRaw,
 } from "@/server/backend-contract";
 import { cacheHits } from "@/store/search-cache";
-import type { DocumentHit, SearchApiResponse } from "@/types/docfinder";
+import type { DocumentHit, SearchApiResponse, SortMode } from "@/types/docfinder";
 
 type SearchBody = {
   q?: string;
@@ -15,21 +15,17 @@ type SearchBody = {
   mode?: "search" | "ask";
   filters?: {
     doc_type?: string[];
-    category?: string[];
     tags?: string[];
     lang?: string[];
     from?: string;
     to?: string;
-    sort?: "relevance" | "date";
+    sort?: SortMode;
   };
 };
 
 function applyFilters(hits: DocumentHit[], filters: SearchBody["filters"]) {
   return hits.filter((hit) => {
     if (filters?.doc_type?.length && !filters.doc_type.includes(hit.doc_type)) {
-      return false;
-    }
-    if (filters?.category?.length && !filters.category.includes(hit.category)) {
       return false;
     }
     if (filters?.lang?.length && !filters.lang.includes(hit.lang)) {
@@ -55,6 +51,20 @@ function buildAvailable(hits: DocumentHit[]) {
     tags: Array.from(new Set(hits.flatMap((hit) => hit.tags))).sort(),
     langs: Array.from(new Set(hits.map((hit) => hit.lang))).sort(),
   };
+}
+
+function sortHits(hits: DocumentHit[], sort: SortMode | undefined) {
+  switch (sort) {
+    case "relevance_asc":
+      return [...hits].sort((a, b) => a.score - b.score || b.date.localeCompare(a.date));
+    case "date_desc":
+      return [...hits].sort((a, b) => b.date.localeCompare(a.date) || b.score - a.score);
+    case "date_asc":
+      return [...hits].sort((a, b) => a.date.localeCompare(b.date) || b.score - a.score);
+    case "relevance_desc":
+    default:
+      return [...hits].sort((a, b) => b.score - a.score || b.date.localeCompare(a.date));
+  }
 }
 
 export async function POST(req: Request) {
@@ -85,9 +95,7 @@ export async function POST(req: Request) {
   try {
     const backendPayload = await searchBackendRaw(baseUrl, queryText);
     const mapped = mapBackendHits(backendPayload, queryText);
-    const sorted = applyFilters(mapped, body.filters).sort((a, b) =>
-      body.filters?.sort === "date" ? b.date.localeCompare(a.date) : b.score - a.score
-    );
+    const sorted = sortHits(applyFilters(mapped, body.filters), body.filters?.sort);
 
     const start = (page - 1) * pageSize;
     const end = start + pageSize;

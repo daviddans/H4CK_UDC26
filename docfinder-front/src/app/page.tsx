@@ -5,7 +5,6 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   AlertTriangle,
-  CommandIcon,
   Grid3X3,
   List,
   Search,
@@ -17,7 +16,6 @@ import {
 
 import type { AskResponse, SearchApiResponse, SearchFilters, SearchMode } from "@/types/docfinder";
 import { AskPanel } from "@/components/docfinder/ask-panel";
-import { CommandPalette } from "@/components/docfinder/command-palette";
 import { FilterSidebar } from "@/components/docfinder/filter-sidebar";
 import { ResultCard } from "@/components/docfinder/result-card";
 import { ResultSkeleton } from "@/components/docfinder/result-skeleton";
@@ -33,12 +31,11 @@ const PAGE_SIZE = 6;
 
 const DEFAULT_FILTERS: SearchFilters = {
   doc_type: [],
-  category: [],
   tags: [],
   lang: [],
   from: "",
   to: "",
-  sort: "relevance",
+  sort: "relevance_desc",
 };
 
 const INITIAL_DATA: SearchApiResponse = {
@@ -77,7 +74,6 @@ export default function HomePage() {
   const [data, setData] = useState<SearchApiResponse>(INITIAL_DATA);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [askResponse, setAskResponse] = useState<AskResponse | null>(null);
-  const [paletteOpen, setPaletteOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   useEffect(() => {
@@ -207,18 +203,6 @@ export default function HomePage() {
       })
     );
 
-    filters.category.forEach((value) =>
-      chips.push({
-        key: `category-${value}`,
-        label: `category: ${value}`,
-        remove: () =>
-          setFilters((prev) => ({
-            ...prev,
-            category: prev.category.filter((item) => item !== value),
-          })),
-      })
-    );
-
     filters.tags.forEach((value) =>
       chips.push({
         key: `tag-${value}`,
@@ -266,9 +250,9 @@ export default function HomePage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden pb-20">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.18),transparent_35%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.14),transparent_28%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.22),transparent_40%),radial-gradient(circle_at_top_right,_rgba(20,184,166,0.18),transparent_34%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.16),transparent_34%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.10),transparent_30%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.16),transparent_34%),radial-gradient(circle_at_top_right,_rgba(34,197,94,0.10),transparent_28%)]" />
 
-      <header className="sticky top-0 z-30 border-b border-white/70 bg-white/75 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/75">
+      <header className="sticky top-0 z-30 border-b border-white/75 bg-white/80 backdrop-blur-xl dark:border-slate-700/80 dark:bg-slate-950/70">
         <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between px-4 py-4 md:px-8">
           <Link href="/" className="inline-flex items-center gap-3">
             <div className="rounded-xl bg-slate-900 p-2 text-white shadow-lg shadow-slate-900/30 dark:bg-slate-100 dark:text-slate-900">
@@ -276,43 +260,12 @@ export default function HomePage() {
             </div>
             <div>
               <p className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">DocFinder</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">document intelligence</p>
+              <p className="text-xs text-slate-500 dark:text-slate-300">document intelligence</p>
             </div>
           </Link>
 
-          <div className="hidden items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900 md:flex">
-            <button
-              type="button"
-              onClick={() => setMode("search")}
-              className={cn(
-                "rounded-xl px-4 py-2 text-sm font-semibold transition",
-                mode === "search"
-                  ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
-                  : "text-slate-500 dark:text-slate-400"
-              )}
-            >
-              Search
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("ask")}
-              className={cn(
-                "rounded-xl px-4 py-2 text-sm font-semibold transition",
-                mode === "ask"
-                  ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
-                  : "text-slate-500 dark:text-slate-400"
-              )}
-            >
-              Ask
-            </button>
-          </div>
-
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Button variant="secondary" onClick={() => setPaletteOpen(true)}>
-              <CommandIcon className="h-4 w-4" />
-              Ctrl+K
-            </Button>
             <UploadModal
               trigger={
                 <Button variant="accent" size="lg" className="hidden md:inline-flex">
@@ -329,49 +282,22 @@ export default function HomePage() {
         <motion.section
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-4 rounded-3xl border border-white/80 bg-white/75 p-4 shadow-[0_16px_38px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/70 md:p-5"
+          className="mb-4 rounded-3xl border border-white/85 bg-white/85 p-4 shadow-[0_16px_38px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-700/90 dark:bg-slate-900/80 md:p-6"
         >
-          <p className="mb-2 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-700/75 dark:text-cyan-300/70">
-            Enterprise Document Search
-          </p>
-          <h1 className="mb-3 text-center text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 md:text-3xl">
-            Find evidence in seconds
+          <h1 className="mb-4 text-center text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 md:text-3xl">
+            What do you want to find?
           </h1>
 
-          {mode === "search" && (
-            <div className="mx-auto flex w-full max-w-5xl items-center gap-3 rounded-[1.6rem] border border-slate-200 bg-white px-4 py-2.5 shadow-[0_12px_28px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900">
-              <Search className="h-5 w-5 text-slate-400 dark:text-slate-500" />
-              <Input
-                value={query}
-                onChange={(event) => {
-                  setPage(1);
-                  setQuery(event.target.value);
-                }}
-                placeholder="Search by clause, control, policy, incident, vendor..."
-                className="h-10 border-0 bg-transparent px-0 text-[15px] shadow-none focus-visible:ring-0"
-              />
-              <Button variant="accent" className="rounded-2xl" onClick={() => setPage(1)}>
-                Search
-              </Button>
-            </div>
-          )}
-
-          {mode === "ask" && (
-            <div className="mx-auto max-w-3xl text-center text-sm text-slate-500 dark:text-slate-400">
-              Ask a natural language question and get an answer with grounded sources.
-            </div>
-          )}
-
-          <div className="mt-3 flex justify-center md:hidden">
-            <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900">
+          <div className="mb-4 flex justify-center">
+            <div className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-slate-100/80 p-1 dark:border-slate-700 dark:bg-slate-800/80">
               <button
                 type="button"
                 onClick={() => setMode("search")}
                 className={cn(
                   "rounded-xl px-4 py-2 text-sm font-semibold transition",
                   mode === "search"
-                    ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
-                    : "text-slate-500 dark:text-slate-400"
+                    ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-slate-100"
+                    : "text-slate-600 dark:text-slate-300"
                 )}
               >
                 Search
@@ -382,14 +308,36 @@ export default function HomePage() {
                 className={cn(
                   "rounded-xl px-4 py-2 text-sm font-semibold transition",
                   mode === "ask"
-                    ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
-                    : "text-slate-500 dark:text-slate-400"
+                    ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-slate-100"
+                    : "text-slate-600 dark:text-slate-300"
                 )}
               >
                 Ask
               </button>
             </div>
           </div>
+
+          {mode === "search" ? (
+            <div className="mx-auto flex w-full max-w-6xl items-center gap-3 rounded-[1.7rem] border border-slate-200 bg-white px-5 py-3 shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900">
+              <Search className="h-5 w-5 text-slate-400 dark:text-slate-300" />
+              <Input
+                value={query}
+                onChange={(event) => {
+                  setPage(1);
+                  setQuery(event.target.value);
+                }}
+                placeholder="Search by clause, control, policy, incident, vendor..."
+                className="h-12 border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0 md:text-lg"
+              />
+              <Button variant="accent" className="h-11 rounded-2xl px-5" onClick={() => setPage(1)}>
+                Search
+              </Button>
+            </div>
+          ) : (
+            <div className="mx-auto max-w-3xl text-center text-sm text-slate-600 dark:text-slate-300">
+              Ask a natural language question and get an answer with grounded sources.
+            </div>
+          )}
         </motion.section>
 
         {mode === "ask" ? (
@@ -416,8 +364,8 @@ export default function HomePage() {
             <div className="order-2 space-y-3">
               <div className="space-y-2 px-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                    <SlidersHorizontal className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                  <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                    <SlidersHorizontal className="h-4 w-4 text-slate-500 dark:text-slate-300" />
                     {data.total} results
                   </div>
 
@@ -451,11 +399,11 @@ export default function HomePage() {
                 {appliedFilters.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {appliedFilters.map((chip) => (
-                      <Badge key={chip.key} variant="outline" className="gap-1">
+                      <Badge key={chip.key} variant="outline" className="gap-1.5">
                         {chip.label}
                         <button
                           type="button"
-                          className="rounded-full p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                          className="rounded-full p-0.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
                           onClick={chip.remove}
                         >
                           <X className="h-3 w-3" />
@@ -478,21 +426,21 @@ export default function HomePage() {
                   ))}
                 </div>
               ) : searchError ? (
-                <Card className="rounded-3xl border-rose-200 dark:border-rose-500/30">
+                <Card className="rounded-3xl border-rose-200 dark:border-rose-500/40">
                   <CardContent className="flex items-start gap-3 py-8 text-left">
                     <AlertTriangle className="mt-0.5 h-5 w-5 text-rose-500" />
                     <div>
                       <h2 className="text-lg font-semibold text-rose-700 dark:text-rose-300">Backend search error</h2>
-                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{searchError}</p>
+                      <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">{searchError}</p>
                     </div>
                   </CardContent>
                 </Card>
               ) : data.hits.length === 0 ? (
                 <Card className="rounded-3xl border-dashed dark:border-slate-700">
                   <CardContent className="flex flex-col items-center gap-3 py-14 text-center">
-                    <Sparkles className="h-10 w-10 text-slate-300 dark:text-slate-600" />
-                    <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200">No results found</h2>
-                    <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
+                    <Sparkles className="h-10 w-10 text-slate-300 dark:text-slate-500" />
+                    <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-100">No results found</h2>
+                    <p className="max-w-sm text-sm text-slate-600 dark:text-slate-300">
                       Try a different query, remove filters, or switch to Ask mode for a broader semantic answer.
                     </p>
                   </CardContent>
@@ -512,7 +460,7 @@ export default function HomePage() {
 
                   <Card className="rounded-3xl">
                     <CardContent className="flex items-center justify-between gap-3 p-4">
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                      <p className="text-sm text-slate-600 dark:text-slate-300">
                         Page {data.page} of {totalPages}
                       </p>
 
@@ -552,17 +500,6 @@ export default function HomePage() {
           </section>
         )}
       </main>
-
-      <CommandPalette
-        open={paletteOpen}
-        onOpenChange={setPaletteOpen}
-        hits={data.hits}
-        onSelectQuery={(selectedQuery) => {
-          setMode("search");
-          setQuery(selectedQuery);
-          setPage(1);
-        }}
-      />
     </div>
   );
 }
