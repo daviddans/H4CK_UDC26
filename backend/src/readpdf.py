@@ -3,164 +3,106 @@ import fitz
 from difflib import SequenceMatcher
 
 """
-Obtenemos el texto de cada pagina en lineas. paginas sera una lista de listas de lineas
+Obtenemos el texto de cada página en líneas. 
+Retorna una lista donde cada elemento es una lista de strings (líneas).
 """
 def extraer_paginas(ruta_pdf):
-    doc = fitz.open(ruta_pdf)
-    paginas = []
-    for page in doc:
-        texto = page.get_text()
-        lineas = texto.split('\n')
-        paginas.append(lineas)
-    doc.close()
-    return paginas
+    try:
+        doc = fitz.open(ruta_pdf)
+        paginas = []
+        for page in doc:
+            texto = page.get_text()
+            lineas = texto.split('\n')
+            paginas.append(lineas)
+        doc.close()
+        return paginas
+    except Exception as e:
+        print(f"Error al abrir el PDF: {e}")
+        return []
 
 """
-Devuelve True o False si dos textos son lo suficientemente similares
+Compara la similitud entre dos textos (útil para detectar headers repetidos).
 """
 def son_similares(a, b, umbral=0.7):
     return SequenceMatcher(None, a, b).ratio() >= umbral
 
 """
-Detecta líneas casi repetidas en top o bottom de las páginas.
-"""
-def detectar_casi_repetidos(paginas, posicion="top", n_lineas=3):
-    lineas = []
-
-    # 1️⃣ Recoger líneas candidatas
-    for pagina in paginas:
-        if posicion == "top":
-            candidatas = pagina[:n_lineas]
-        else:
-            candidatas = pagina[-n_lineas:]
-
-        for linea in candidatas:
-            lineas.append(linea.strip())
-
-    grupos = []
-    usadas = set()
-
-    # 2️⃣ Agrupar por similitud
-    for i in range(len(lineas)):
-        if i in usadas:
-            continue
-
-        grupo_actual = [lineas[i]]
-        usadas.add(i)
-
-        for j in range(i + 1, len(lineas)):
-            if j in usadas:
-                continue
-
-            if son_similares(lineas[i], lineas[j]):
-                grupo_actual.append(lineas[j])
-                usadas.add(j)
-
-        grupos.append(grupo_actual)
-
-    # 3️⃣ Ver qué grupos superan el umbral del 80%
-    umbral = len(paginas) * 0.6
-    repetidos = set()
-
-    for grupo in grupos:
-        if len(grupo) >= umbral:
-            for linea in grupo:
-                repetidos.add(linea)
-
-    return repetidos
-
-"""
-Elimina de cada página las líneas que se repiten en la parte superior
-(headers) o inferior (footers) del documento. Devuelve todo el texto limpio
-en un unico string
-"""
-def limpiar_headers_footers(paginas):
-    # Detectamos las líneas repetidas arriba y abajo
-    headers = detectar_casi_repetidos(paginas, "top")
-    footers = detectar_casi_repetidos(paginas, "bottom")
-
-    texto_limpio = []
-
-    # Recorremos cada página
-    for pagina in paginas:
-        lineas_filtradas = []
-
-        # Recorremos cada línea de la página
-        for linea in pagina:
-            
-            # Si la línea es un header repetido, la saltamos
-            if linea in headers:
-                continue
-
-            # Si la línea es un footer repetido, la saltamos
-            if linea in footers:
-                continue
-
-            # Si no es ni header ni footer, la guardamos
-            lineas_filtradas.append(linea)
-
-        # Unimos las líneas limpias de la página
-        pagina_limpia = "\n".join(lineas_filtradas)
-        texto_limpio.append(pagina_limpia)
-
-    # Unimos todas las páginas en un único texto
-    resultado_final = "\n".join(texto_limpio)
-
-    return resultado_final
-
-"""
-Para normalizar los espacios del texto, se hace basicamente lo que se dice en los comentarios
+Limpia espacios extraños, tabs y saltos de línea innecesarios.
 """
 def normalizar_espacios(texto):
-    # Reemplazar tabs por espacio
     texto = texto.replace("\t", " ")
-
-    # Quitar espacios múltiples
-    texto = re.sub(r"[ ]{2,}", " ", texto)
-
-    # Quitar espacios antes de salto de línea
-    texto = re.sub(r" +\n", "\n", texto)
-
-    # Quitar espacios al inicio y final
-    texto = texto.strip()
-
-    return texto
+    texto = re.sub(r"[ ]{2,}", " ", texto) # Quitar espacios múltiples
+    texto = re.sub(r" +\n", "\n", texto)   # Quitar espacios antes de salto de línea
+    return texto.strip()
 
 """
-Une todo el texto en un solo párrafo limpio:
-- Elimina caracteres especiales tipo •, ★, etc.
-- Respeta signos de puntuación normales (. , : ; ? !)
-- Convierte saltos de línea en espacios
+Elimina caracteres especiales y une todo en un flujo de texto continuo.
+Esto es vital para que el embedding sea de calidad.
 """
 def unir_lineas(texto):
-    # Quitar caracteres especiales (excepto letras, números, puntuación normal y espacios)
+    # Mantener solo caracteres alfanuméricos, puntuación básica y espacios
     texto = re.sub(r"[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ@%/+-=#_.,:;?!\s]", "", texto)
-
-    # Reemplazar saltos de línea y tabs por espacio
+    # Convertir saltos de línea en espacios
     texto = texto.replace("\n", " ").replace("\t", " ")
-
-    # Reducir múltiples espacios a uno solo
+    # Limpiar espacios múltiples resultantes
     texto = re.sub(r" +", " ", texto)
-
-    # Quitar espacios al inicio y al final
-    texto = texto.strip()
-
-    return texto
+    return texto.strip()
 
 """
-Funcion general que realizara todo el proceso llamando a otras funciones
+Detecta y elimina encabezados (headers) y pies de página (footers) 
+comparando las primeras y últimas líneas de todas las páginas.
+"""
+def limpiar_headers_footers(paginas):
+    if not paginas:
+        return ""
+    
+    # Si solo hay una página, no podemos comparar repeticiones
+    if len(paginas) == 1:
+        return "\n".join(paginas[0])
+
+    texto_final = []
+    
+    # Identificar posibles líneas de header (línea 0 de cada página)
+    headers_a_borrar = set()
+    primeras_lineas = [p[0] for p in paginas if len(p) > 0]
+    
+    for i in range(len(primeras_lineas)):
+        for j in range(i + 1, len(primeras_lineas)):
+            if son_similares(primeras_lineas[i], primeras_lineas[j]):
+                headers_a_borrar.add(primeras_lineas[i])
+
+    # Procesar cada página quitando las líneas basura
+    for pagina in paginas:
+        lineas_validas = []
+        for i, linea in enumerate(pagina):
+            # Omitir si es header detectado
+            if i == 0 and linea in headers_a_borrar:
+                continue
+            # Omitir líneas que son solo números (posibles números de página)
+            if re.match(r"^\s*\d+\s*$", linea):
+                continue
+            lineas_validas.append(linea)
+        
+        texto_final.append("\n".join(lineas_validas))
+
+    return "\n".join(texto_final)
+
+"""
+Función principal que orquesta la extracción y limpieza completa.
 """
 def limpiar_pdf(ruta_pdf):
+    # 1. Extraer
     paginas = extraer_paginas(ruta_pdf)
-    
-    texto = limpiar_headers_footers(paginas)
-    texto = normalizar_espacios(texto)
-    texto = unir_lineas(texto)
+    if not paginas:
+        return ""
 
-    return texto
+    # 2. Quitar ruido (headers/footers/números de página)
+    texto_sucio = limpiar_headers_footers(paginas)
 
-if __name__ == "__main__":
-    ruta = "dataset_hackudc/propuesta_smart_port_2024.pdf"
-    texto_limpio = limpiar_pdf(ruta)
-    
-    print(texto_limpio)
+    # 3. Normalizar espacios
+    texto_medio = normalizar_espacios(texto_sucio)
+
+    # 4. Unificar en un solo párrafo limpio para el Chunking
+    texto_limpio = unir_lineas(texto_medio)
+
+    return texto_limpio
