@@ -1,7 +1,7 @@
 import ollama
 
 class OllamaManager:
-    def __init__(self, model="llama3"):
+    def __init__(self, model="qwen2.5:7b-instruct"):
         self.model = model
 
     def generate_answer(self, query, context_chunks):
