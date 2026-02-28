@@ -3,21 +3,26 @@ import index
 import indexer  
 from opensearchpy import OpenSearch
 
+INDEXNAME = "my-index"
+
 #Entry point for the aplication cli
 def main(argc, argv):
+    status = 0
 
     # Connect to OpenSearch with SSL and authentication
-    client = OpenSearch(
-    hosts=[{'host': 'localhost', 'port': 9200}],
-    http_auth=('admin', 'ComplexPassword123!'),
-    use_ssl=True,
-    verify_certs=False,  # Necessary for local self-signed certs
-    ssl_show_warn=False
-    )   
+    try:
+        client = OpenSearch(
+            hosts=[{'host': 'localhost', 'port': 9200}],
+            http_auth=('admin', 'ComplexPassword123!'),
+            use_ssl=True,
+            verify_certs=False,  # Necessary for local self-signed certs
+            ssl_show_warn=False
+        )
+    except Exception as e:
+        print(f"Error connecting to OpenSearch: {e}")
+        return -1
 
-    print(f"Number of arguments: {argc}")
-    print(f"Arguments: {argv}")
-
+    # Comand line interface for the application
     if argc < 2:
         print("Usage: python main.py help for more info")
         return 0
@@ -29,17 +34,19 @@ def main(argc, argv):
         print("  index <file> -> to index")
     if command == "init":
         print("Initializing index...")
+        status = index.create_index(client, INDEXNAME)
     if command == "index":
-        file = argv[2] if argc > 2 else None
-        if not file:
+        file_path = argv[2] if argc > 2 else None
+        if not file_path:
             print("Please provide a file to index. Usage: python main.py index <file>")
-            return 0
-        print(f"Indexing file: {file}")
+            return -1
+        print(f"Indexing file: {file_path}")
+        status = indexer.index_document(client, INDEXNAME, file_path)
     else:
         print(f"Unknown command: {command}. Use 'help' for available commands.")
         return -1
 
     print("Command executed successfully - none left to do.")
-    return 0
+    return status
 if __name__ == "__main__":
     main(len(sys.argv), sys.argv)
