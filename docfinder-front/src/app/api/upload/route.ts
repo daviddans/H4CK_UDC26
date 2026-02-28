@@ -42,10 +42,7 @@ export async function POST(req: Request) {
   }
 
   const metadata = {
-    doc_type: String(formData.get("doc_type") ?? "unknown"),
-    category: String(formData.get("category") ?? "unknown"),
     tags: String(formData.get("tags") ?? ""),
-    lang: String(formData.get("lang") ?? "en"),
   };
 
   const { docId, fullPath } = await saveFile(file);
@@ -55,13 +52,10 @@ export async function POST(req: Request) {
     source_name: sourceName,
     original_name: file.name || sourceName,
     saved_path: fullPath,
-    doc_type: metadata.doc_type,
-    category: metadata.category,
     tags: metadata.tags
       .split(",")
       .map((item) => item.trim())
       .filter(Boolean),
-    lang: metadata.lang,
     uploaded_at: new Date().toISOString(),
   });
 

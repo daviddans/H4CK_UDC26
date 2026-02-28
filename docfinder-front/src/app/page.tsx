@@ -65,7 +65,6 @@ function buildPagination(current: number, totalPages: number) {
 export default function HomePage() {
   const [mode, setMode] = useState<SearchMode>("search");
   const [query, setQuery] = useState("");
-  const [question, setQuestion] = useState("");
   const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [page, setPage] = useState(1);
@@ -150,6 +149,15 @@ export default function HomePage() {
   }, [filters, mode, page, query]);
 
   const onAsk = async () => {
+    const question = query.trim();
+    if (!question) {
+      setAskResponse({
+        answer: "Write a question first.",
+        citations: [],
+      });
+      return;
+    }
+
     setAskLoading(true);
     setAskResponse(null);
 
@@ -157,7 +165,7 @@ export default function HomePage() {
       const response = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
+          body: JSON.stringify({ question }),
       });
 
       const payload = (await response.json()) as
@@ -267,6 +275,7 @@ export default function HomePage() {
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <UploadModal
+              suggestedTags={data.available.tags}
               trigger={
                 <Button variant="accent" size="lg" className="hidden md:inline-flex">
                   <UploadCloud className="h-4 w-4" />
@@ -334,17 +343,29 @@ export default function HomePage() {
               </Button>
             </div>
           ) : (
-            <div className="mx-auto max-w-3xl text-center text-sm text-slate-600 dark:text-slate-300">
-              Ask a natural language question and get an answer with grounded sources.
+            <div className="mx-auto flex w-full max-w-6xl items-center gap-3 rounded-[1.7rem] border border-slate-200 bg-white px-5 py-3 shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900">
+              <Search className="h-5 w-5 text-slate-400 dark:text-slate-300" />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Ask a question about your indexed documents..."
+                className="h-12 border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0 md:text-lg"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void onAsk();
+                  }
+                }}
+              />
+              <Button variant="accent" className="h-11 rounded-2xl px-5" onClick={() => void onAsk()}>
+                Send
+              </Button>
             </div>
           )}
         </motion.section>
 
         {mode === "ask" ? (
           <AskPanel
-            question={question}
-            onChange={setQuestion}
-            onAsk={onAsk}
             loading={askLoading}
             response={askResponse}
           />

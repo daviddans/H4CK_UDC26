@@ -6,10 +6,10 @@ export type UploadRegistryEntry = {
   source_name: string;
   original_name: string;
   saved_path: string;
-  doc_type: string;
-  category: string;
+  doc_type?: string;
+  category?: string;
   tags: string[];
-  lang: string;
+  lang?: string;
   uploaded_at: string;
 };
 
@@ -63,4 +63,16 @@ export function getUploadRegistryEntryByDocId(docId: string) {
   return (
     Object.values(registry.bySource).find((entry) => entry.doc_id === docId) ?? null
   );
+}
+
+export function listUploadRegistryTags() {
+  const registry = readRegistry();
+  return Array.from(
+    new Set(
+      Object.values(registry.bySource)
+        .flatMap((entry) => entry.tags ?? [])
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b));
 }

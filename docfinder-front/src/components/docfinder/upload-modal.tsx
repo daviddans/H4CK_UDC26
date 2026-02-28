@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { FileUp, Loader2, UploadCloud } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { FileUp, Loader2, Plus, UploadCloud, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,30 +13,23 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 type UploadModalProps = {
   trigger?: React.ReactNode;
   onUploaded?: (docId: string) => void;
+  suggestedTags?: string[];
 };
 
-const DOC_TYPES = ["policy", "report", "manual", "checklist", "template", "guide"];
-const CATEGORIES = ["security", "compliance", "operations", "finance", "audit", "privacy"];
-const LANGS = ["en", "es", "pt", "fr"];
+function normalizeTag(value: string) {
+  return value.trim().toLowerCase();
+}
 
-export function UploadModal({ trigger, onUploaded }: UploadModalProps) {
+export function UploadModal({ trigger, onUploaded, suggestedTags = [] }: UploadModalProps) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const [docType, setDocType] = useState("policy");
-  const [category, setCategory] = useState("compliance");
-  const [tags, setTags] = useState("enterprise, controls");
-  const [lang, setLang] = useState("en");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [knownTags, setKnownTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(false);
   const [initLoading, setInitLoading] = useState(false);
@@ -54,11 +47,68 @@ export function UploadModal({ trigger, onUploaded }: UploadModalProps) {
     return "Completed";
   }, [loading, progress]);
 
+  const availableTags = useMemo(() => {
+    return Array.from(
+      new Set(
+        [...suggestedTags, ...knownTags, ...selectedTags]
+          .map(normalizeTag)
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
+  }, [knownTags, selectedTags, suggestedTags]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    let disposed = false;
+    async function loadTags() {
+      try {
+        const response = await fetch("/api/tags");
+        if (!response.ok) {
+          return;
+        }
+        const payload = (await response.json()) as { tags?: string[] };
+        if (!disposed) {
+          setKnownTags(Array.isArray(payload.tags) ? payload.tags.map(normalizeTag).filter(Boolean) : []);
+        }
+      } catch {
+        if (!disposed) {
+          setKnownTags([]);
+        }
+      }
+    }
+
+    void loadTags();
+    return () => {
+      disposed = true;
+    };
+  }, [open]);
+
   const clearTimer = () => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+  };
+
+  const addTag = (raw: string) => {
+    const next = normalizeTag(raw);
+    if (!next) {
+      return;
+    }
+    setSelectedTags((prev) => (prev.includes(next) ? prev : [...prev, next]));
+    setKnownTags((prev) =>
+      prev.includes(next) ? prev : [...prev, next].sort((a, b) => a.localeCompare(b))
+    );
+    setTagInput("");
+  };
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag]
+    );
   };
 
   const onSubmit = async () => {
@@ -78,10 +128,7 @@ export function UploadModal({ trigger, onUploaded }: UploadModalProps) {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("doc_type", docType);
-      formData.append("category", category);
-      formData.append("tags", tags);
-      formData.append("lang", lang);
+      formData.append("tags", selectedTags.join(","));
 
       const response = await fetch("/api/upload", {
         method: "POST",
@@ -101,6 +148,8 @@ export function UploadModal({ trigger, onUploaded }: UploadModalProps) {
         setLoading(false);
         setProgress(0);
         setFile(null);
+        setSelectedTags([]);
+        setTagInput("");
       }, 500);
     } catch (err) {
       clearTimer();
@@ -149,14 +198,12 @@ export function UploadModal({ trigger, onUploaded }: UploadModalProps) {
         <DialogHeader>
           <DialogTitle>Upload document</DialogTitle>
           <DialogDescription>
-            Drag and drop your file, classify it, and send it to the index pipeline.
+            Drop your file and tag it before sending to the index pipeline.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200/90 bg-slate-50/90 px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
-          <p className="text-xs text-slate-600 dark:text-slate-300">
-            Backend tools
-          </p>
+          <p className="text-xs text-slate-600 dark:text-slate-300">Backend tools</p>
           <Button
             variant="secondary"
             size="sm"
@@ -203,63 +250,66 @@ export function UploadModal({ trigger, onUploaded }: UploadModalProps) {
           />
         </label>
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Doc type</p>
-            <Select value={docType} onValueChange={setDocType}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DOC_TYPES.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {value}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Category</p>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CATEGORIES.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {value}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Language</p>
-            <Select value={lang} onValueChange={setLang}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {LANGS.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {value}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Tags</p>
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Tags</p>
+          <div className="flex items-center gap-2">
             <Input
-              value={tags}
-              onChange={(event) => setTags(event.target.value)}
-              placeholder="security, gdpr"
+              value={tagInput}
+              onChange={(event) => setTagInput(event.target.value)}
+              placeholder="Write a tag and press Enter"
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  addTag(tagInput);
+                }
+              }}
             />
+            <Button type="button" variant="secondary" onClick={() => addTag(tagInput)}>
+              <Plus className="h-4 w-4" />
+              Add
+            </Button>
           </div>
+
+          {selectedTags.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5 rounded-xl border border-cyan-200/80 bg-cyan-50/80 p-2 dark:border-cyan-500/40 dark:bg-cyan-500/10">
+              {selectedTags.map((tag) => (
+                <button
+                  key={`selected-${tag}`}
+                  type="button"
+                  onClick={() => toggleTag(tag)}
+                  className="inline-flex items-center gap-1 rounded-full border border-cyan-300 bg-cyan-100 px-2 py-1 text-xs font-medium text-cyan-700 dark:border-cyan-400/60 dark:bg-cyan-500/20 dark:text-cyan-200"
+                  title="Unselect tag"
+                >
+                  {tag}
+                  <X className="h-3 w-3" />
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {availableTags.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {availableTags.map((tag) => {
+                const selected = selectedTags.includes(tag);
+                return (
+                  <button
+                    key={`known-${tag}`}
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    className={
+                      selected
+                        ? "rounded-full border border-cyan-300 bg-cyan-100 px-2 py-1 text-xs font-medium text-cyan-700 dark:border-cyan-400/60 dark:bg-cyan-500/20 dark:text-cyan-200"
+                        : "rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                    }
+                  >
+                    {tag}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500 dark:text-slate-400">No tags yet. Create the first one.</p>
+          )}
         </div>
 
         <div className="space-y-2">

@@ -2,18 +2,35 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import {
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isAfter,
+  isBefore,
+  isSameDay,
+  isSameMonth,
+  isToday,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+} from "date-fns";
+import {
   CalendarDays,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Languages,
   RotateCcw,
   SlidersHorizontal,
   Tags,
+  X,
 } from "lucide-react";
 
 import type { SearchApiResponse, SearchFilters, SortMode } from "@/types/docfinder";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -21,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 type FilterSidebarProps = {
@@ -29,10 +47,23 @@ type FilterSidebarProps = {
   onUpdate: (next: SearchFilters) => void;
 };
 
+const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
+
 function toggleValue(current: string[], value: string) {
   return current.includes(value)
     ? current.filter((item) => item !== value)
     : [...current, value];
+}
+
+function parseDateValue(value?: string) {
+  if (!value) {
+    return null;
+  }
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+  return parsed;
 }
 
 function FieldBlock({
@@ -92,23 +123,158 @@ function MiniSelect({
   );
 }
 
-function DateInput({
+function DatePicker({
   value,
   onChange,
+  placeholder,
+  minDate,
+  maxDate,
 }: {
   value: string;
   onChange: (next: string) => void;
+  placeholder: string;
+  minDate?: Date;
+  maxDate?: Date;
 }) {
+  const selectedDate = parseDateValue(value);
+  const [open, setOpen] = useState(false);
+  const [monthCursor, setMonthCursor] = useState<Date>(selectedDate ?? new Date());
+
+  const days = useMemo(() => {
+    const start = startOfWeek(startOfMonth(monthCursor), { weekStartsOn: 1 });
+    const end = endOfWeek(endOfMonth(monthCursor), { weekStartsOn: 1 });
+    return eachDayOfInterval({ start, end });
+  }, [monthCursor]);
+
+  const min = minDate ? startOfDay(minDate) : undefined;
+  const max = maxDate ? startOfDay(maxDate) : undefined;
+
+  const isDayDisabled = (day: Date) => {
+    if (min && isBefore(day, min)) {
+      return true;
+    }
+    if (max && isAfter(day, max)) {
+      return true;
+    }
+    return false;
+  };
+
+  const selectDay = (day: Date) => {
+    if (isDayDisabled(day)) {
+      return;
+    }
+    onChange(format(day, "yyyy-MM-dd"));
+    setOpen(false);
+  };
+
+  const selectToday = () => {
+    const today = startOfDay(new Date());
+    if (isDayDisabled(today)) {
+      return;
+    }
+    onChange(format(today, "yyyy-MM-dd"));
+    setMonthCursor(today);
+    setOpen(false);
+  };
+
   return (
-    <div className="relative">
-      <CalendarDays className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400 dark:text-slate-300" />
-      <Input
-        type="date"
-        value={value}
-        className="h-9 rounded-xl border-slate-200 bg-white pl-7 pr-2 text-xs dark:border-slate-700 dark:bg-slate-900"
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="group relative flex h-9 w-full items-center rounded-2xl border border-slate-200 bg-white pl-8 pr-8 text-left text-xs font-medium text-slate-700 shadow-sm transition hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600 dark:focus:ring-cyan-500/30"
+        >
+          <CalendarDays className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400 transition group-hover:text-cyan-500 dark:text-slate-300 dark:group-hover:text-cyan-300" />
+          <span className="truncate">
+            {selectedDate ? format(selectedDate, "dd MMM yyyy") : placeholder}
+          </span>
+          {selectedDate ? (
+            <span
+              onClick={(event) => {
+                event.stopPropagation();
+                onChange("");
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+              role="button"
+              aria-label={`Clear ${placeholder}`}
+            >
+              <X className="h-3 w-3" />
+            </span>
+          ) : null}
+        </button>
+      </PopoverTrigger>
+
+      <PopoverContent className="w-[292px] p-3">
+        <div className="mb-3 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setMonthCursor((prev) => addMonths(prev, -1))}
+            className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+            aria-label="Previous month"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+
+          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+            {format(monthCursor, "MMMM yyyy")}
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setMonthCursor((prev) => addMonths(prev, 1))}
+            className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+            aria-label="Next month"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mb-1 grid grid-cols-7 gap-1">
+          {DAY_LABELS.map((day, index) => (
+            <span
+              key={`${day}-${index}`}
+              className="text-center text-[11px] font-semibold text-slate-500 dark:text-slate-300"
+            >
+              {day}
+            </span>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1">
+          {days.map((day) => {
+            const outside = !isSameMonth(day, monthCursor);
+            const selected = selectedDate ? isSameDay(day, selectedDate) : false;
+            const disabled = isDayDisabled(day);
+            return (
+              <button
+                key={day.toISOString()}
+                type="button"
+                disabled={disabled}
+                onClick={() => selectDay(day)}
+                className={cn(
+                  "h-8 rounded-lg text-xs font-medium transition",
+                  outside
+                    ? "text-slate-300 dark:text-slate-600"
+                    : "text-slate-700 dark:text-slate-100",
+                  selected &&
+                    "bg-cyan-600 text-white shadow-[0_8px_16px_rgba(8,145,178,0.35)] dark:bg-cyan-500 dark:text-slate-950",
+                  !selected && !disabled && "hover:bg-slate-100 dark:hover:bg-slate-800",
+                  isToday(day) && !selected && "ring-1 ring-cyan-400/60",
+                  disabled && "cursor-not-allowed opacity-45"
+                )}
+              >
+                {format(day, "d")}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3 dark:border-slate-700">
+          <Button size="sm" variant="ghost" onClick={() => onChange("")}>Clear</Button>
+          <Button size="sm" variant="secondary" onClick={selectToday}>Today</Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -128,6 +294,8 @@ export function FilterSidebar({ filters, available, onUpdate }: FilterSidebarPro
   const quickTypeOptions = available.docTypes.slice(0, 20);
   const quickLangOptions = available.langs.slice(0, 20);
   const quickTagOptions = available.tags.slice(0, 24);
+  const fromDate = parseDateValue(filters.from);
+  const toDate = parseDateValue(filters.to);
 
   return (
     <Card className="rounded-2xl border-slate-200/90 bg-white/90 shadow-[0_10px_30px_rgba(15,23,42,0.06)] backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/85">
@@ -192,17 +360,27 @@ export function FilterSidebar({ filters, available, onUpdate }: FilterSidebarPro
               />
             </FieldBlock>
 
-            <FieldBlock label="From" className="w-[170px]">
-              <DateInput
+            <FieldBlock label="From" className="w-[182px]">
+              <DatePicker
                 value={filters.from || ""}
-                onChange={(value) => onUpdate({ ...filters, from: value })}
+                onChange={(next) =>
+                  onUpdate({
+                    ...filters,
+                    from: next,
+                    to: filters.to && next && filters.to < next ? next : filters.to,
+                  })
+                }
+                placeholder="From date"
+                maxDate={toDate ?? undefined}
               />
             </FieldBlock>
 
-            <FieldBlock label="To" className="w-[170px]">
-              <DateInput
+            <FieldBlock label="To" className="w-[182px]">
+              <DatePicker
                 value={filters.to || ""}
-                onChange={(value) => onUpdate({ ...filters, to: value })}
+                onChange={(next) => onUpdate({ ...filters, to: next })}
+                placeholder="To date"
+                minDate={fromDate ?? undefined}
               />
             </FieldBlock>
           </div>
