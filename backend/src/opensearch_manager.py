@@ -1,5 +1,8 @@
+from cmath import phase
 from enum import auto
 import os
+import re
+import numpy as np
 from opensearchpy import OpenSearch, helpers
 from sentence_transformers import SentenceTransformer
 from readpdf import limpiar
@@ -66,7 +69,31 @@ class OpenSearchManager:
         """Crea el índice con soporte k-NN y mapeo de texto."""
         index_body = {
             "settings": {
-                "index": {"knn": True, "number_of_shards": 1, "number_of_replicas": 0}
+                "analysis": {
+                    "analyzer": {
+                        "custom_analyzer": {
+                            "type": "custom",
+                            "tokenizer": "standard",
+                            "filter": [
+                                "lowercase", 
+                                "asciifolding",
+                                "stop",
+                                "porter_stem"],
+                        }
+                    }
+                },
+                "index": {
+                    "knn": True, 
+                    "number_of_shards": 1,
+                    "number_of_replicas": 0,
+                    "similarity": {
+                        "default": {
+                            "type": "BM25",
+                            "b": 0.3, # Reduce la penalización por longitud de documento
+                            "k1": 1.2 # Controla la saturación de términos
+                        }
+                    }
+                }
             },
             "mappings": {
                 "properties": {
@@ -144,11 +171,17 @@ class OpenSearchManager:
         helpers.bulk(self.client, acciones_bulk())
         print(f"Documento '{os.path.basename(file_path)}' indexado.")
 
-    def hybrid_search_rrf(self, index_name, query_text, top_k=10):
+    def hybrid_search_rrf(self, index_name, query_text, top_k=5):
         """Búsqueda de 3 vías para maximizar la precisión literal y semántica."""
         try:
             # Prefijo 'query: ' para búsqueda semántica
+            res = self.client.count(index=index_name)
+            doc_count = res['count']
+            top_k = top_k + int(max(doc_count, 10000) / 100)
             vector_busqueda = self.model.encode(f"query: {query_text}").tolist()
+            length = len(query_text)
+            char_target = 200
+            sigmoid = 1 / ( 1 + np.pow(np.e,-(length - char_target)) )
 
             query_body = {
                 "size": TOTAL_QUERRY_SIZE,
@@ -157,13 +190,29 @@ class OpenSearchManager:
                     "hybrid": {
                         "queries": [
                             # 1. Coincidencia de palabras sueltas
-                            {"match": {"content": {"query": query_text}}},
+                            {"match": {
+                                "content": {
+                                    "query": query_text,
+                                    "boost": 1 - sigmoid
+                                    }
+                                }
+                            },
                             # 2. Coincidencia de FRASE EXACTA (Literalidad)
-                            {"match_phrase": {"content": {"query": query_text}}},
+                            {"match_phrase": {
+                                "content": {
+                                    "query": query_text,
+                                    "boost": 1 + sigmoid,
+                                    }
+                                }
+                            },
                             # 3. Coincidencia Semántica (Vectores)
                             {
                                 "knn": {
-                                    "embedding": {"vector": vector_busqueda, "k": top_k}
+                                    "embedding": {
+                                        "vector": vector_busqueda, 
+                                        "k": top_k,
+                                        "boost": 1 + sigmoid,
+                                    }    
                                 }
                             },
                         ]
