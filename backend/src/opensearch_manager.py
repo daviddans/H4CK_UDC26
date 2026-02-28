@@ -89,7 +89,8 @@ class OpenSearchManager:
                             "author": {"type": "keyword", "index": False},
                             "creation_date": {"type": "date", "format": "yyyy-MM-dd||strict_date_optional_time||epoch_millis", "index": False},
                             "type": {"type": "keyword", "index": False},
-                            "tags": {"type": "keyword"}
+                            "tags": {"type": "keyword"},
+                            "path" : {"type": "keyword", "index": False}
                         }
                     }
                 }
