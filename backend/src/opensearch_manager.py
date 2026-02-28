@@ -77,12 +77,21 @@ class OpenSearchManager:
                             "engine": "faiss",
                         },
                     },
-                    "metadata": {
+                    "chunk_data": {
                         "properties": {
                             "source": {"type": "keyword"},
-                            "chunk_id": {"type": "integer"},
+                            "chunk_id": {"type": "integer"}
                         }
                     },
+                    "metadata": {
+                        "properties": {
+                            "title": {"type": "keyword"},
+                            "author": {"type": "keyword", "index": False},
+                            "creation_date": {"type": "date", "format": "yyyy-MM-dd||strict_date_optional_time||epoch_millis", "index": False},
+                            "type": {"type": "keyword", "index": False},
+                            "tags": {"type": "keyword"}
+                        }
+                    }
                 }
             },
         }
@@ -112,7 +121,7 @@ class OpenSearchManager:
                     "_source": {
                         "content": chunk,
                         "embedding": vector,
-                        "metadata": {
+                        "chunk_data": {
                             "source": os.path.basename(file_path),
                             "chunk_id": i,
                         },
