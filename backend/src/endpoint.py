@@ -1,3 +1,5 @@
+import html
+import os
 import re
 
 from fastapi import FastAPI, HTTPException, Query
@@ -11,9 +13,9 @@ manager = OpenSearchManager()
 ollama_manager = OllamaManager(model="qwen2.5:7b-instruct")
 app = FastAPI()
 
-INDEX_NAME = "mi-archivo-inteligente"
-MAX_CONTEXT_CHUNKS = 4
-MAX_CHARS_PER_CHUNK = 500
+INDEX_NAME = os.getenv("INDEX_NAME", "mi-archivo-inteligente")
+MAX_CONTEXT_CHUNKS = int(os.getenv("ASK_MAX_CONTEXT_CHUNKS", "4"))
+MAX_CHARS_PER_CHUNK = int(os.getenv("ASK_MAX_CHARS_PER_CHUNK", "500"))
 
 
 class SearchFile(BaseModel):
@@ -41,8 +43,6 @@ class AskRequest(BaseModel):
 
 
 def _get_query_text(payload: SearchRequest | AskRequest):
-    if isinstance(payload, AskRequest):
-        return payload.question or payload.query or payload.querry or payload.q
     return payload.query or payload.querry or payload.q
 
 
@@ -55,6 +55,13 @@ def _get_search_text(payload: AskRequest):
         or payload.q
         or payload.question
     )
+
+
+def _safe_int(value, default=0):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def _format_title(source: str):
@@ -90,26 +97,19 @@ def _make_snippet(content: str, query_text: str, size: int = 260):
             first_pos = idx
 
     start = max(0, first_pos - 80) if first_pos >= 0 else 0
-    text = clean[start : start + size]
+    snippet = html.escape(clean[start : start + size])
 
     for token in tokens:
-        text = re.sub(
+        snippet = re.sub(
             re.escape(token),
             lambda m: f"<mark>{m.group(0)}</mark>",
-            text,
+            snippet,
             flags=re.IGNORECASE,
         )
 
     prefix = "..." if start > 0 else ""
     suffix = "..." if start + size < len(clean) else ""
-    return f"{prefix}{text}{suffix}"
-
-
-def _safe_int(value, default=0):
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return default
+    return f"{prefix}{snippet}{suffix}"
 
 
 def _ensure_index(index_name: str):
@@ -121,7 +121,86 @@ def _ensure_index(index_name: str):
         manager.init_index(index_name)
 
 
+def _ask_core(payload: AskRequest):
+    search_text = _get_search_text(payload)
+    question = payload.question or search_text
+
+    if not question:
+        raise HTTPException(status_code=400, detail="Missing question text")
+    if not search_text:
+        raise HTTPException(status_code=400, detail="Missing search text")
+
+    result = manager.hybrid_search_rrf(
+        INDEX_NAME,
+        search_text,
+        top_k=MAX_CONTEXT_CHUNKS,
+    )
+    if result is None:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Search failed on index '{INDEX_NAME}'. "
+                "Run /init and then /add-index before asking."
+            ),
+        )
+
+    raw_hits = result.get("hits", {}).get("hits", [])
+    if not isinstance(raw_hits, list):
+        raw_hits = []
+
+    chunks = []
+    citations = []
+
+    for idx, hit in enumerate(raw_hits[:MAX_CONTEXT_CHUNKS]):
+        if not isinstance(hit, dict):
+            continue
+        source_data = hit.get("_source", {})
+        if not isinstance(source_data, dict):
+            continue
+
+        content = source_data.get("content", "")
+        if not isinstance(content, str):
+            content = str(content or "")
+
+        metadata = source_data.get("metadata", {})
+        if not isinstance(metadata, dict):
+            metadata = {}
+        source_name = metadata.get("source", "document.txt")
+        if not isinstance(source_name, str):
+            source_name = str(source_name or "document.txt")
+
+        chunk_id = _safe_int(metadata.get("chunk_id", idx), idx)
+
+        if content:
+            chunks.append(content[:MAX_CHARS_PER_CHUNK])
+            citations.append(
+                {
+                    "doc_id": _make_doc_id(source_name),
+                    "title": _format_title(source_name),
+                    "page": chunk_id + 1,
+                    "snippet_html": _make_snippet(content, question),
+                }
+            )
+
+    if not chunks:
+        return {
+            "answer": "No se encontró contexto suficiente para responder esa pregunta.",
+            "citations": [],
+        }
+
+    try:
+        answer = ollama_manager.generate_answer(question, chunks)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Ollama request failed: {exc}",
+        )
+
+    return {"answer": answer, "citations": citations}
+
+
 @app.get("/init")
+@app.post("/init")
 def init_index():
     manager.init_index(INDEX_NAME)
     return {"estado": "ok", "index": INDEX_NAME}
@@ -167,79 +246,10 @@ def search_file(payload: SearchRequest):
 @app.post("/ask")
 @app.post("/ask_ai")
 def ask_file(payload: AskRequest):
-    search_text = _get_search_text(payload)
-    question = payload.question or search_text
-    if not question:
-        raise HTTPException(status_code=400, detail="Missing question text")
-    if not search_text:
-        raise HTTPException(status_code=400, detail="Missing search text")
+    return _ask_core(payload)
 
-    result = manager.hybrid_search_rrf(
-        INDEX_NAME,
-        search_text,
-        top_k=MAX_CONTEXT_CHUNKS,
-    )
-    if result is None:
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                f"Search failed on index '{INDEX_NAME}'. "
-                "Run /init and then /add-index before asking."
-            ),
-        )
 
-    raw_hits = result.get("hits", {}).get("hits", [])
-    if not isinstance(raw_hits, list):
-        raw_hits = []
-
-    chunks = []
-    citations = []
-
-    for idx, hit in enumerate(raw_hits[:MAX_CONTEXT_CHUNKS]):
-        if not isinstance(hit, dict):
-            continue
-        source_data = hit.get("_source", {})
-        if not isinstance(source_data, dict):
-            continue
-
-        content = source_data.get("content", "")
-        if not isinstance(content, str):
-            content = str(content or "")
-        metadata = source_data.get("metadata", {})
-        if not isinstance(metadata, dict):
-            metadata = {}
-        source_name = metadata.get("source", "document.txt")
-        if not isinstance(source_name, str):
-            source_name = str(source_name or "document.txt")
-        chunk_id = _safe_int(metadata.get("chunk_id", idx), idx)
-
-        if content:
-            chunks.append(content[:MAX_CHARS_PER_CHUNK])
-            citations.append(
-                {
-                    "doc_id": _make_doc_id(source_name),
-                    "title": _format_title(source_name),
-                    "page": chunk_id + 1,
-                    "snippet_html": _make_snippet(content, question),
-                }
-            )
-
-    if not chunks:
-        return {
-            "answer": "No se encontró contexto suficiente para responder esa pregunta.",
-            "citations": [],
-        }
-
-    try:
-        # Mismo flujo que main.py: búsqueda híbrida + respuesta LLM con contexto.
-        answer = ollama_manager.generate_answer(question, chunks)
-    except Exception as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Ollama request failed: {exc}",
-        )
-
-    return {
-        "answer": answer,
-        "citations": citations,
-    }
+@app.post("/question")
+def question_ollama(payload: AskRequest):
+    result = _ask_core(payload)
+    return {"response": result["answer"], "citations": result["citations"]}

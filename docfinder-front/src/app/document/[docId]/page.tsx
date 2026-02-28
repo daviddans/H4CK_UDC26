@@ -17,6 +17,8 @@ export default function DocumentDetailPage() {
   const [document, setDocument] = useState<DocumentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedPage, setSelectedPage] = useState<number | null>(null);
+  const [textPreview, setTextPreview] = useState<string>("");
+  const [textPreviewLoading, setTextPreviewLoading] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -80,6 +82,55 @@ export default function DocumentDetailPage() {
   );
   const hasDownloadUrl = Boolean(document?.download_url);
   const hasOpenUrl = Boolean(document?.open_url);
+  const viewerType = document?.viewer_type ?? "binary";
+
+  useEffect(() => {
+    const openUrl = document?.open_url ?? "";
+    if (!openUrl || (viewerType !== "text" && viewerType !== "csv")) {
+      setTextPreview("");
+      setTextPreviewLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    let disposed = false;
+
+    async function fetchTextPreview() {
+      setTextPreviewLoading(true);
+      try {
+        const response = await fetch(openUrl, { signal: controller.signal });
+        if (!response.ok) {
+          if (!disposed) {
+            setTextPreview("Preview unavailable");
+          }
+          return;
+        }
+        const raw = await response.text();
+        if (!disposed) {
+          const maxChars = 14000;
+          setTextPreview(raw.slice(0, maxChars));
+        }
+      } catch (error) {
+        const isAbort =
+          (error instanceof DOMException && error.name === "AbortError") ||
+          (error instanceof Error && error.name === "AbortError");
+        if (!isAbort && !disposed) {
+          setTextPreview("Preview unavailable");
+        }
+      } finally {
+        if (!disposed) {
+          setTextPreviewLoading(false);
+        }
+      }
+    }
+
+    void fetchTextPreview();
+
+    return () => {
+      disposed = true;
+      controller.abort();
+    };
+  }, [document?.open_url, viewerType]);
 
   if (loading) {
     return (
@@ -189,30 +240,49 @@ export default function DocumentDetailPage() {
 
         <Card className="rounded-3xl">
           <CardHeader>
-            <CardTitle className="text-base">PDF preview</CardTitle>
+            <CardTitle className="text-base">Document preview</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex min-h-[560px] flex-col justify-between rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-900">
               <div>
-                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Viewer placeholder</p>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  {viewerType === "pdf" ? "PDF Viewer" : "Document Viewer"}
+                </p>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  Integrate your preferred PDF viewer here. The panel already receives page context
-                  from evidences.
+                  {document.source_name ?? "Source file"}
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
-                {selectedChunk ? (
-                  <>
-                    <p className="mb-2 text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                      highlighted evidence pag. {selectedChunk.page_start}
-                    </p>
-                    <div dangerouslySetInnerHTML={{ __html: selectedChunk.snippet_html }} />
-                  </>
-                ) : (
-                  <p>Select an evidence chunk to preview it.</p>
-                )}
-              </div>
+              {viewerType === "pdf" && hasOpenUrl ? (
+                <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950">
+                  <iframe
+                    src={document.open_url}
+                    title={document.title}
+                    className="h-[420px] w-full"
+                  />
+                </div>
+              ) : viewerType === "text" || viewerType === "csv" ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
+                  {textPreviewLoading ? (
+                    <p>Loading preview...</p>
+                  ) : (
+                    <pre className="max-h-[360px] overflow-auto whitespace-pre-wrap">{textPreview || "No preview available"}</pre>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
+                  {selectedChunk ? (
+                    <>
+                      <p className="mb-2 text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        highlighted evidence pag. {selectedChunk.page_start}
+                      </p>
+                      <div dangerouslySetInnerHTML={{ __html: selectedChunk.snippet_html }} />
+                    </>
+                  ) : (
+                    <p>Select an evidence chunk to preview it.</p>
+                  )}
+                </div>
+              )}
 
               <div className="flex justify-end">
                 {hasOpenUrl ? (

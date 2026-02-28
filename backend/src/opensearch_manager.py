@@ -1,3 +1,4 @@
+from enum import auto
 import os
 from opensearchpy import OpenSearch, helpers
 from sentence_transformers import SentenceTransformer
@@ -79,10 +80,23 @@ class OpenSearchManager:
                             "engine": "faiss",
                         },
                     },
-                    "metadata": {
+                    "chunk_data": {
                         "properties": {
                             "source": {"type": "keyword"},
                             "chunk_id": {"type": "integer"},
+                        }
+                    },
+                    "metadata": {
+                        "properties": {
+                            "title": {"type": "keyword"},
+                            "author": {"type": "keyword", "index": False},
+                            "creation_date": {
+                                "type": "date",
+                                "format": "yyyy-MM-dd",
+                                "index": False,
+                            },
+                            "type": {"type": "keyword", "index": False},
+                            "tags": {"type": "keyword"},
                         }
                     },
                 }
@@ -93,20 +107,19 @@ class OpenSearchManager:
         self.client.indices.create(index=index_name, body=index_body)
         print(f"Índice '{index_name}' reiniciado correctamente.")
 
-    def index_pdf(self, index_name, file_path):
-        """Indexación con prefijo 'passage:' requerido por el modelo E5."""
-        if not os.path.exists(file_path):
-            return
-
-        texto = limpiar(file_path)
+    # Modifica esta función dentro de opensearch_manager.py
+    def index_pdf(
+        self, index_name, file_path, texto, autor, creation_date, lang, tags=None
+    ):
+        """Indexación usando el texto y metadatos ya extraídos."""
         if not texto:
             return
 
+        # Ahora texto es un string, crear_chunks funcionará correctamente
         chunks = crear_chunks(texto)
 
         def acciones_bulk():
             for i, chunk in enumerate(chunks):
-                # Prefijo 'passage: ' crítico para la calidad del embedding en E5
                 texto_para_embedding = f"passage: {chunk}"
                 vector = self.model.encode(texto_para_embedding).tolist()
                 yield {
@@ -114,9 +127,16 @@ class OpenSearchManager:
                     "_source": {
                         "content": chunk,
                         "embedding": vector,
-                        "metadata": {
+                        "chunk_data": {
                             "source": os.path.basename(file_path),
                             "chunk_id": i,
+                        },
+                        "metadata": {
+                            "title": os.path.basename(file_path),
+                            "author": autor,
+                            "creation_date": creation_date,
+                            "type": lang,
+                            "tags": tags if isinstance(tags, list) else [],
                         },
                     },
                 }

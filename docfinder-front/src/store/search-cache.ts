@@ -30,6 +30,8 @@ export function getCachedDocumentById(docId: string): DocumentDetail | null {
     lang: first.lang,
     date: first.date,
     score: first.score,
+    source_name: first.source_name,
+    source_path: first.source_path,
     chunks,
   };
 }

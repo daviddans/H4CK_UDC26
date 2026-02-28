@@ -1,8 +1,10 @@
 import type { DocumentHit } from "@/types/docfinder";
 import { getUploadRegistryEntryBySource } from "@/server/upload-registry";
+import path from "node:path";
 
 type BackendSourceMetadata = {
   source?: string;
+  source_name?: string;
   chunk_id?: number | string;
   doc_id?: string;
   title?: string;
@@ -13,6 +15,14 @@ type BackendSourceMetadata = {
   date?: string;
   page_start?: number | string;
   page_end?: number | string;
+  path?: string;
+  file_path?: string;
+  source_path?: string;
+  full_path?: string;
+  file?: string;
+  dir?: string;
+  source_dir?: string;
+  directory?: string;
 };
 
 type BackendRawHit = {
@@ -182,7 +192,7 @@ export function mapBackendHits(payload: BackendSearchResponse, queryText: string
 
   return rawHits.map((hit, index) => {
     const metadata = hit._source?.metadata ?? {};
-    const sourceName = metadata.source ?? `document-${index + 1}.txt`;
+    const sourceName = metadata.source_name ?? metadata.source ?? `document-${index + 1}.txt`;
     const uploadMeta = getUploadRegistryEntryBySource(sourceName);
     const chunkRaw = metadata.chunk_id ?? index;
     const chunkId = toNumber(chunkRaw, index);
@@ -196,6 +206,26 @@ export function mapBackendHits(payload: BackendSearchResponse, queryText: string
     const pageEnd = toNumber(metadata.page_end, pageStart);
     const detectedType = sourceName.split(".").pop()?.toLowerCase() || "document";
     const dateFromUpload = uploadMeta?.uploaded_at?.slice(0, 10);
+    const directPathCandidates = [
+      metadata.file_path,
+      metadata.source_path,
+      metadata.full_path,
+      metadata.path,
+      metadata.file,
+      uploadMeta?.saved_path,
+    ]
+      .map((value) => (typeof value === "string" ? value.trim() : ""))
+      .filter(Boolean);
+
+    const dirCandidate =
+      (typeof metadata.dir === "string" && metadata.dir.trim()) ||
+      (typeof metadata.source_dir === "string" && metadata.source_dir.trim()) ||
+      (typeof metadata.directory === "string" && metadata.directory.trim()) ||
+      "";
+
+    const sourcePath =
+      directPathCandidates[0] ||
+      (dirCandidate ? path.join(dirCandidate, sourceName) : undefined);
 
     return {
       doc_id: docId,
@@ -210,6 +240,8 @@ export function mapBackendHits(payload: BackendSearchResponse, queryText: string
       date: metadata.date ?? dateFromUpload ?? now,
       score: Number(hit._score ?? 0),
       snippet_html: makeSnippet(content, queryText),
+      source_name: sourceName,
+      source_path: sourcePath,
     };
   });
 }

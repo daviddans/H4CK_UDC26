@@ -17,6 +17,8 @@ export type DocumentHit = {
   date: string;
   score: number;
   snippet_html: string;
+  source_name?: string;
+  source_path?: string;
 };
 
 export type SearchFilters = {
@@ -64,6 +66,9 @@ export type DocumentDetail = {
   lang: string;
   date: string;
   score: number;
+  source_name?: string;
+  source_path?: string;
+  viewer_type?: "pdf" | "text" | "csv" | "spreadsheet" | "binary";
   download_url?: string;
   open_url?: string;
   chunks: DocumentHit[];
