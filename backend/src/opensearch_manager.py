@@ -1,3 +1,4 @@
+from enum import auto
 import os
 from opensearchpy import OpenSearch, helpers
 from sentence_transformers import SentenceTransformer
@@ -82,19 +83,22 @@ class OpenSearchManager:
                     "chunk_data": {
                         "properties": {
                             "source": {"type": "keyword"},
-                            "chunk_id": {"type": "integer"}
+                            "chunk_id": {"type": "integer"},
                         }
                     },
                     "metadata": {
                         "properties": {
                             "title": {"type": "keyword"},
                             "author": {"type": "keyword", "index": False},
-                            "creation_date": {"type": "date", "format": "yyyy-MM-dd||strict_date_optional_time||epoch_millis", "index": False},
+                            "creation_date": {
+                                "type": "date",
+                                "format": "yyyy-MM-dd||strict_date_optional_time||epoch_millis",
+                                "index": False,
+                            },
                             "type": {"type": "keyword", "index": False},
                             "tags": {"type": "keyword"},
-                            "path" : {"type": "keyword", "index": False}
                         }
-                    }
+                    },
                 }
             },
         }
@@ -103,7 +107,7 @@ class OpenSearchManager:
         self.client.indices.create(index=index_name, body=index_body)
         print(f"Índice '{index_name}' reiniciado correctamente.")
 
-    def index_pdf(self, index_name, file_path):
+    def index_pdf(self, index_name, file_path, autor, creation_date, lang, tags=None):
         """Indexación con prefijo 'passage:' requerido por el modelo E5."""
         if not os.path.exists(file_path):
             return
@@ -127,6 +131,13 @@ class OpenSearchManager:
                         "chunk_data": {
                             "source": os.path.basename(file_path),
                             "chunk_id": i,
+                        },
+                        "metadata": {
+                            "title": os.path.basename(file_path),
+                            "author": autor,
+                            "creation_date": creation_date,
+                            "type": lang,
+                            "tags": tags if isinstance(tags, list) else [],
                         },
                     },
                 }
