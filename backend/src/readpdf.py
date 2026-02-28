@@ -1,3 +1,6 @@
+import pandas as pd
+from io import StringIO
+import os
 import re
 import fitz
 from difflib import SequenceMatcher
@@ -150,17 +153,48 @@ def unir_lineas(texto):
 """
 Funcion general que realizara todo el proceso llamando a otras funciones
 """
-def limpiar_pdf(ruta_pdf):
-    paginas = extraer_paginas(ruta_pdf)
+def limpiar(ruta):
+    # Revisamos la extension del fichero
+    ext = os.path.splitext(ruta)[1].lower()
     
-    texto = limpiar_headers_footers(paginas)
-    texto = normalizar_espacios(texto)
-    texto = unir_lineas(texto)
+    if ext == ".pdf":
+        # Esto es lo que hay que hacer con un PDF normal
+        paginas = extraer_paginas(ruta)
+        
+        texto = limpiar_headers_footers(paginas)
+        texto = normalizar_espacios(texto)
+        texto = unir_lineas(texto)
+
+        #if not texto:
+            # Logica de PDF escaneado
+    
+    elif ext in [".txt", ".csv", ".xlsx"]:
+        if ext == ".xlsx":
+            # Cargar la primera hoja del Excel
+            df = pd.read_excel(ruta)
+
+            # Convertir a CSV en memoria
+            csv_buffer = StringIO()
+            df.to_csv(csv_buffer, index=False, encoding="utf-8")
+
+            # Obtener el contenido como texto
+            texto = csv_buffer.getvalue()
+        else:
+            # TXT o CSV
+            with open(ruta, "r", encoding="utf-8") as f:
+                texto = f.read()
+
+        # Procesar el texto
+        texto = normalizar_espacios(texto)
+        texto = unir_lineas(texto) 
+    
+    else:
+        raise ValueError("No se ha definido logica para esta extension de fichero")
 
     return texto
 
 if __name__ == "__main__":
-    ruta = "dataset_hackudc/propuesta_smart_port_2024.pdf"
-    texto_limpio = limpiar_pdf(ruta)
+    ruta = "dataset_hackudc/acta_constitucion_novatech.pdf"
+    texto_limpio = limpiar(ruta)
     
     print(texto_limpio)
