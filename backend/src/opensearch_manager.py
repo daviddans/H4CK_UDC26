@@ -1,8 +1,6 @@
-from enum import auto
 import os
 from opensearchpy import OpenSearch, helpers
 from sentence_transformers import SentenceTransformer
-from readpdf import limpiar
 from text_utils import crear_chunks
 
 TOTAL_QUERRY_SIZE = 1000
@@ -23,13 +21,11 @@ class OpenSearchManager:
             )
             # Mantenemos el modelo Multilingual E5 Small (384 dim)
             self.model = SentenceTransformer("intfloat/multilingual-e5-small")
-            print("Modelo Multilingual E5 cargado.")
 
             # Actualizamos el pipeline para manejar 3 fuentes de puntuación
             self.create_rrf_pipeline()
         except Exception as e:
-            print(f"Error en inicialización: {e}")
-            raise
+            raise e
 
     def create_rrf_pipeline(self, pipeline_id="rrf-hybrid-pipeline"):
         """
@@ -41,7 +37,11 @@ class OpenSearchManager:
             "phase_results_processors": [
                 {
                     "normalization-processor": {
+                        # Para normalizar los datos se utiliza min_max para escalar
+                        # los numeros en un rango de [0,1]
                         "normalization": {"technique": "min_max"},
+                        # Permite combinar los distintos resultados obtenidos haciendo una ponderacion
+                        # armonica
                         "combination": {
                             "technique": "harmonic_mean",
                             "parameters": {
@@ -54,13 +54,12 @@ class OpenSearchManager:
             ],
         }
         try:
-            if self.client.search_pipeline.get(id=pipeline_id, ignore=[404]):
+            if self.client.search_pipeline.get(id=pipeline_id):
                 self.client.search_pipeline.delete(id=pipeline_id)
 
             self.client.search_pipeline.put(id=pipeline_id, body=pipeline_body)
-            print(f"Pipeline '{pipeline_id}' configurado (Prioridad: Frase Literal).")
         except Exception as e:
-            print(f"Error configurando el pipeline: {e}")
+            raise e
 
     def init_index(self, index_name):
         """Crea el índice con soporte k-NN y mapeo de texto."""
@@ -76,6 +75,7 @@ class OpenSearchManager:
                         "dimension": 384,
                         "method": {
                             "name": "hnsw",
+                            # Se compara la diferencia en entre los grados de los vectores
                             "space_type": "cosinesimil",
                             "engine": "faiss",
                         },
@@ -105,10 +105,8 @@ class OpenSearchManager:
         if self.client.indices.exists(index=index_name):
             self.client.indices.delete(index=index_name)
         self.client.indices.create(index=index_name, body=index_body)
-        print(f"Índice '{index_name}' reiniciado correctamente.")
 
-    # Modifica esta función dentro de opensearch_manager.py
-    def index_pdf(
+    def index_document(
         self, index_name, file_path, texto, autor, creation_date, lang, tags=None
     ):
         """Indexación usando el texto y metadatos ya extraídos."""
@@ -118,6 +116,7 @@ class OpenSearchManager:
         # Ahora texto es un string, crear_chunks funcionará correctamente
         chunks = crear_chunks(texto)
 
+        # Permite juntar todos los chunks
         def acciones_bulk():
             for i, chunk in enumerate(chunks):
                 texto_para_embedding = f"passage: {chunk}"
@@ -142,12 +141,10 @@ class OpenSearchManager:
                 }
 
         helpers.bulk(self.client, acciones_bulk())
-        print(f"Documento '{os.path.basename(file_path)}' indexado.")
 
     def hybrid_search_rrf(self, index_name, query_text, top_k=10):
-        """Búsqueda de 3 vías para maximizar la precisión literal y semántica."""
+        """Realiza la busqueda aplicando los diferentes metodos indexados y sematicos"""
         try:
-            # Prefijo 'query: ' para búsqueda semántica
             vector_busqueda = self.model.encode(f"query: {query_text}").tolist()
 
             query_body = {
@@ -177,5 +174,4 @@ class OpenSearchManager:
                 params={"search_pipeline": "rrf-hybrid-pipeline"},
             )
         except Exception as e:
-            print(f"Error en búsqueda híbrida: {e}")
-            return None
+            return e
