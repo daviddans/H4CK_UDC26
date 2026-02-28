@@ -1,3 +1,6 @@
+# Se añade para evitar subir el dataset
+dataset_hackudc/
+
 # Git ignore for Python projects
 
 # Byte-compiled / optimized / DLL files
