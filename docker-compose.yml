@@ -19,9 +19,23 @@ services:
       - 9200:9200
     networks:
       - opensearch-net
+   
+  backend:
+    build: backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend_data:/app/data
+    depends_on:
+      - opensearch-node
+    networks:
+      - opensearch-net  
 
 volumes:
   opensearch-data:
+
+  backend_data:
+
 
 networks:
   opensearch-net:
