@@ -118,3 +118,6 @@ celerybeat-schedule
 # OS files
 .DS_Store
 Thumbs.db
+
+# Dataset files
+/dataset
