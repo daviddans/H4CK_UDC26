@@ -1,4 +1,6 @@
 from PIL import Image
+from PyPDF2 import PdfReader
+from datetime import datetime
 from pdf2image import convert_from_path
 import pytesseract
 import pandas as pd
@@ -7,6 +9,58 @@ import os
 import re
 import fitz
 from difflib import SequenceMatcher
+from openpyxl import load_workbook
+from langdetect import detect
+
+"""
+Para detectar el idioma de un fichero
+"""
+def detectar_idioma(texto):
+
+    return detect(texto)
+
+"""
+Para obtener los metadatos de un fichero
+"""
+def extraer_metadatos(ruta):
+    ext = ruta.lower().split(".")[-1]
+
+    if ext == "pdf":
+        reader = PdfReader(ruta)
+        metadata = reader.metadata
+        
+        raw_date = metadata.get("/CreationDate")
+        
+        # quitar "D:"
+        raw_date = raw_date[2:]
+
+        # convertir a datetime
+        fecha = datetime.strptime(raw_date, "%Y%m%d%H%M%S")
+
+        # formatear a 'día-mes-año'
+        fecha_formateada = f"{fecha.day}-{fecha.month}-{fecha.year}"
+        return {
+            "autor": metadata.get("/Author"),
+            "creation_date": fecha_formateada
+        }   
+
+    elif ext == "xlsx":
+        wb = load_workbook(ruta)
+        return {
+            "autor": wb.properties.creator,
+            "creation_date": (wb.properties.created).strftime("%d-%m-%Y")
+        }
+
+    elif ext in ["csv", "txt"]:
+        stat = os.stat(ruta)
+        return {
+            "autor": None,
+            "creation_date": (datetime.fromtimestamp(stat.st_ctime)).strftime("%d-%m-%Y")
+        }
+
+    else:
+        return {"Error": "Formato no soportado"}
+
 
 """
 Obtenemos el texto de cada pagina en lineas. paginas sera una lista de listas de lineas
@@ -187,6 +241,10 @@ Funcion general que realizara todo el proceso llamando a otras funciones
 def limpiar(ruta):
     # Revisamos la extension del fichero
     ext = os.path.splitext(ruta)[1].lower()
+
+    diccionario = {}
+
+    diccionario = extraer_metadatos(ruta)
     
     if ext == ".pdf":
         # Esto es lo que hay que hacer con un PDF normal
@@ -227,10 +285,15 @@ def limpiar(ruta):
     else:
         raise ValueError("No se ha definido logica para esta extension de fichero")
 
-    return texto
+    idioma = detectar_idioma(texto)
+
+    diccionario["lang"] = idioma
+    diccionario["text"] = texto
+
+    return diccionario
 
 if __name__ == "__main__":
-    ruta = "dataset_hackudc/acta_constitucion_novatech.pdf"
+    ruta = "dataset_hackudc/presupuesto_2025_novatech.xlsx"
     texto_limpio = limpiar(ruta)
     
     print(texto_limpio)
