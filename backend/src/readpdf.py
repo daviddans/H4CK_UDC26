@@ -15,48 +15,57 @@ from langdetect import detect
 """
 Para detectar el idioma de un fichero
 """
-def detectar_idioma(texto):
 
+
+def detectar_idioma(texto):
     return detect(texto)
+
 
 """
 Para obtener los metadatos de un fichero
 """
+
+
 def extraer_metadatos(ruta):
     ext = ruta.lower().split(".")[-1]
 
     if ext == "pdf":
         reader = PdfReader(ruta)
         metadata = reader.metadata
-        
         raw_date = metadata.get("/CreationDate")
-        
-        # quitar "D:"
-        raw_date = raw_date[2:]
 
-        # convertir a datetime
-        fecha = datetime.strptime(raw_date, "%Y%m%d%H%M%S")
+        # Intentar extraer la fecha del PDF
+        try:
+            if raw_date:
+                # Quitamos caracteres no numéricos y tomamos los primeros 14 (YYYYMMDDHHMMSS)
+                clean_date = re.sub(r"[^0-9]", "", raw_date)[:14]
+                fecha = datetime.strptime(clean_date, "%Y%m%d%H%M%S")
+            else:
+                fecha = datetime.now()
+        except:
+            fecha = datetime.now()
 
-        # formatear a 'día-mes-año'
-        fecha_formateada = f"{fecha.day}-{fecha.month}-{fecha.year}"
+        # FORMATO CORRECTO PARA OPENSEARCH: 2021-05-12
         return {
-            "autor": metadata.get("/Author"),
-            "creation_date": fecha_formateada
-        }   
+            "autor": metadata.get("/Author")
+            if metadata.get("/Author")
+            else "Desconocido",
+            "creation_date": fecha.strftime("%Y-%m-%d"),
+        }
 
     elif ext == "xlsx":
         wb = load_workbook(ruta)
+        # Aseguramos formato ISO
+        fecha_excel = wb.properties.created if wb.properties.created else datetime.now()
         return {
-            "autor": wb.properties.creator,
-            "creation_date": (wb.properties.created).strftime("%d-%m-%Y")
+            "autor": wb.properties.creator if wb.properties.creator else "Desconocido",
+            "creation_date": fecha_excel.strftime("%Y-%m-%d"),
         }
 
     elif ext in ["csv", "txt"]:
         stat = os.stat(ruta)
-        return {
-            "autor": None,
-            "creation_date": (datetime.fromtimestamp(stat.st_ctime)).strftime("%d-%m-%Y")
-        }
+        fecha_sistema = datetime.fromtimestamp(stat.st_ctime)
+        return {"autor": "Sistema", "creation_date": fecha_sistema.strftime("%Y-%m-%d")}
 
     else:
         return {"Error": "Formato no soportado"}
@@ -65,25 +74,33 @@ def extraer_metadatos(ruta):
 """
 Obtenemos el texto de cada pagina en lineas. paginas sera una lista de listas de lineas
 """
+
+
 def extraer_paginas(ruta_pdf):
     doc = fitz.open(ruta_pdf)
     paginas = []
     for page in doc:
         texto = page.get_text()
-        lineas = texto.split('\n')
+        lineas = texto.split("\n")
         paginas.append(lineas)
     doc.close()
     return paginas
 
+
 """
 Devuelve True o False si dos textos son lo suficientemente similares
 """
+
+
 def son_similares(a, b, umbral=0.7):
     return SequenceMatcher(None, a, b).ratio() >= umbral
+
 
 """
 Detecta líneas casi repetidas en top o bottom de las páginas.
 """
+
+
 def detectar_casi_repetidos(paginas, posicion="top", n_lineas=3):
     lineas = []
 
@@ -129,11 +146,14 @@ def detectar_casi_repetidos(paginas, posicion="top", n_lineas=3):
 
     return repetidos
 
+
 """
 Elimina de cada página las líneas que se repiten en la parte superior
 (headers) o inferior (footers) del documento. Devuelve todo el texto limpio
 en un unico string
 """
+
+
 def limpiar_headers_footers(paginas):
     # Detectamos las líneas repetidas arriba y abajo
     headers = detectar_casi_repetidos(paginas, "top")
@@ -147,7 +167,6 @@ def limpiar_headers_footers(paginas):
 
         # Recorremos cada línea de la página
         for linea in pagina:
-            
             # Si la línea es un header repetido, la saltamos
             if linea in headers:
                 continue
@@ -168,9 +187,12 @@ def limpiar_headers_footers(paginas):
 
     return resultado_final
 
+
 """
 Para normalizar los espacios del texto, se hace basicamente lo que se dice en los comentarios
 """
+
+
 def normalizar_espacios(texto):
     # Reemplazar tabs por espacio
     texto = texto.replace("\t", " ")
@@ -186,12 +208,15 @@ def normalizar_espacios(texto):
 
     return texto
 
+
 """
 Une todo el texto en un solo párrafo limpio:
 - Elimina caracteres especiales tipo •, ★, etc.
 - Respeta signos de puntuación normales (. , : ; ? !)
 - Convierte saltos de línea en espacios
 """
+
+
 def unir_lineas(texto):
     # Quitar caracteres especiales (excepto letras, números, puntuación normal y espacios)
     texto = re.sub(r"[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ@%/+-=#_.,:;?!\s]", "", texto)
@@ -207,14 +232,16 @@ def unir_lineas(texto):
 
     return texto
 
+
 """
 Devuelve una lista de listas de lineas (cada lista corresponde a una pagina)
 """
-def extraer_lineas_pdf(ruta_pdf, idioma="spa"):
 
+
+def extraer_lineas_pdf(ruta_pdf, idioma="spa"):
     # 1️⃣ Convertir el PDF en imágenes (una imagen por página)
     paginas = convert_from_path(ruta_pdf)
-    
+
     # 2️⃣ Lista final que contendrá todas las páginas
     lista_listas_paginas = []
 
@@ -227,7 +254,7 @@ def extraer_lineas_pdf(ruta_pdf, idioma="spa"):
         lineas = []
         for linea in texto.splitlines():
             linea = linea.strip()  # Quitar espacios al inicio y final
-            if linea:              # Solo añadir si no está vacía
+            if linea:  # Solo añadir si no está vacía
                 lineas.append(linea)
 
         # Añadir las líneas de esta página a la lista final
@@ -235,9 +262,12 @@ def extraer_lineas_pdf(ruta_pdf, idioma="spa"):
 
     return lista_listas_paginas
 
+
 """
 Funcion general que realizara todo el proceso llamando a otras funciones
 """
+
+
 def limpiar(ruta):
     # Revisamos la extension del fichero
     ext = os.path.splitext(ruta)[1].lower()
@@ -245,7 +275,7 @@ def limpiar(ruta):
     diccionario = {}
 
     diccionario = extraer_metadatos(ruta)
-    
+
     if ext == ".pdf":
         # Esto es lo que hay que hacer con un PDF normal
         paginas = extraer_paginas(ruta)
@@ -254,10 +284,9 @@ def limpiar(ruta):
         texto = normalizar_espacios(texto)
         texto = unir_lineas(texto)
 
-        
         if not texto:
             paginas = extraer_lineas_pdf(ruta)
-        
+
             texto = limpiar_headers_footers(paginas)
             texto = normalizar_espacios(texto)
             texto = unir_lineas(texto)
@@ -280,8 +309,8 @@ def limpiar(ruta):
 
         # Procesar el texto
         texto = normalizar_espacios(texto)
-        texto = unir_lineas(texto) 
-    
+        texto = unir_lineas(texto)
+
     else:
         raise ValueError("No se ha definido logica para esta extension de fichero")
 
@@ -292,8 +321,9 @@ def limpiar(ruta):
 
     return diccionario
 
+
 if __name__ == "__main__":
     ruta = "dataset_hackudc/presupuesto_2025_novatech.xlsx"
     texto_limpio = limpiar(ruta)
-    
+
     print(texto_limpio)
