@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 230 34% 98%;
+  --foreground: 225 24% 16%;
+  --card: 0 0% 100%;
+  --card-foreground: 225 24% 16%;
+  --border: 223 26% 90%;
+  --input: 223 26% 90%;
+  --muted: 220 22% 96%;
+  --muted-foreground: 220 15% 45%;
+  --primary: 229 78% 58%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 23% 95%;
+  --secondary-foreground: 224 28% 20%;
+  --ring: 229 78% 58%;
+  --destructive: 0 84% 58%;
+}
+
+.dark {
+  --background: 224 29% 10%;
+  --foreground: 220 20% 96%;
+  --card: 224 26% 14%;
+  --card-foreground: 220 20% 96%;
+  --border: 223 18% 24%;
+  --input: 223 18% 24%;
+  --muted: 223 20% 18%;
+  --muted-foreground: 220 12% 70%;
+  --primary: 225 79% 66%;
+  --primary-foreground: 230 33% 10%;
+  --secondary: 222 20% 20%;
+  --secondary-foreground: 220 20% 96%;
+  --ring: 225 79% 66%;
+  --destructive: 0 72% 55%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html,
+body {
+  @apply h-full;
+}
+
+body {
+  @apply bg-[hsl(var(--background))] text-[hsl(var(--foreground))];
+  font-family: var(--font-manrope), sans-serif;
+}
+
+mark {
+  @apply rounded-md bg-[hsl(var(--primary))]/15 px-1 text-[hsl(var(--foreground))];
+}
