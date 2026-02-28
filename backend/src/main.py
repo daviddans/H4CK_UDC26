@@ -1,61 +1,13 @@
 import sys
-from opensearch_manager import OpenSearchManager
 
-<<<<<<< HEAD
-INDEX_NAME = "mi-archivo-inteligente"
-=======
 from opensearch_dsl import query
 import index
 import indexer
 import search
 from opensearchpy import OpenSearch
->>>>>>> edfd73c278aaa050dc70048aa59c543693661776
 
-def main():
-    if len(sys.argv) < 2:
-        print("\nComandos disponibles:")
-        print("  python main.py init              -> Configurar índice")
-        print("  python main.py index <ruta.pdf>  -> Indexar un PDF")
-        print("  python main.py search <texto>    -> Buscar")
-        return
+INDEXNAME = "my-index"
 
-<<<<<<< HEAD
-    try:
-        manager = OpenSearchManager()
-    except:
-        return
-
-    comando = sys.argv[1].lower()
-
-    if comando == "init":
-        manager.init_index(INDEX_NAME)
-
-    elif comando == "index":
-        if len(sys.argv) < 3:
-            print("Error: Proporciona la ruta del PDF.")
-            return
-        else:
-            manager.index_pdf(INDEX_NAME, sys.argv[2])
-
-    elif comando == "search":
-        if len(sys.argv) < 3:
-            print("Error: ¿Qué quieres buscar?")
-            return
-        
-        query = " ".join(sys.argv[2:])
-        res = manager.semantic_search(INDEX_NAME, query, size=5, knn_k=50)
-
-        print(f"\n--- Resultados para: '{query}' ---")
-        for hit in res["hits"]["hits"]:
-            score = hit.get("_score", 0.0)
-            src = hit["_source"]
-            doc_id = src.get("doc_id")
-            chunk_index = src.get("chunk_index")
-            txt = src.get("content", "")[:220]
-            print(f"Doc: {doc_id} | chunk={chunk_index} | score={score:.4f}")
-            print(f"Texto: {txt}...\n")
-
-=======
 
 # Entry point for the aplication cli
 def main(argc, argv):
@@ -102,14 +54,10 @@ def main(argc, argv):
             )
             return -1
         search.search(client, INDEXNAME, query)
->>>>>>> edfd73c278aaa050dc70048aa59c543693661776
     else:
-        print("Comando no reconocido.")
+        print(f"Unknown command: {command}. Use 'help' for available commands.")
+        return -1
 
-<<<<<<< HEAD
-if __name__ == "__main__":
-    main()
-=======
     print("Command executed successfully - none left to do.")
     return status
 
@@ -117,4 +65,3 @@ if __name__ == "__main__":
 if __name__ == "__main__":
     main(len(sys.argv), sys.argv)
 
->>>>>>> edfd73c278aaa050dc70048aa59c543693661776
