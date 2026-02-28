@@ -3,8 +3,9 @@ import os
 from config import DATA_PATH, EMBEDS_PATH, META_PATH
 from embedding_cache import build_embedding_cache
 from semantic_search import semantic_search
-from embeddings import get_model
-from ask_llm import ask_llm_mock
+from select_context import select_context
+from ask_llm import ask_llm_ollama  
+# from ask_llm import ask_llm_mock 
 
 def ensure_cache():
     if os.path.exists(EMBEDS_PATH) and os.path.exists(META_PATH):
@@ -16,26 +17,43 @@ def main():
     ensure_cache()
 
     # --- SEARCH (sin LLM) ---
-    q = "plazo de deliver"
-    hits = semantic_search(q, top_k=5)
-    hits = [h for h in hits if h["score"] >= 0.82]
+    q = "Presupuesto total"
+    hits = semantic_search(q, top_k=8)
 
     print("\n=== SEARCH RESULTS ===")
     for h in hits:
         print(f"- score={h['score']:.4f} {h['title']} (p{h['page_start']}) [{h['chunk_id']}]")
         print(f"  {h['text'][:160]}...\n")
 
-    # --- ASK (mock LLM de momento) ---
-    question = "¿Qué penalización se aplica si hay retraso en la entrega?"
-    context_chunks = semantic_search(question, top_k=10)
+    # --- ASK (con LLM real) ---
+    question = "Presupuesto total"
+    hits_for_ask = semantic_search(question, top_k=20)
 
-    # Recorta a 8 chunks (luego meteremos diversidad por doc si quieres)
-    context_chunks = context_chunks[:8]
+    # Selección de contexto: 10 chunks, máx 2 por doc, umbral opcional
+    context_chunks = select_context(hits_for_ask, max_chunks=10, max_per_doc=2, min_score=0.78)
 
-    ans = ask_llm_mock(question, context_chunks)
-    print("\n=== ASK ANSWER (MOCK LLM) ===")
-    print(ans)
+    res = ask_llm_ollama(question, context_chunks)
+
+    # Construir citas con metadatos (doc/página)
+    citations = []
+    for n in res["cited_numbers"]:
+        c = context_chunks[n - 1]  # porque [1] refiere al primer chunk del contexto
+        citations.append({
+            "n": n,
+            "doc_id": c["doc_id"],
+            "chunk_id": c["chunk_id"],
+            "page_start": c["page_start"],
+            "page_end": c["page_end"],
+            "title": c["title"],
+            "snippet": c["text"][:220]
+        })
+
+    print("\n=== ASK ANSWER (LLM) ===")
+    print(res["answer"])
+    print("\n=== CITATIONS ===")
+    for c in citations:
+        print(f"[{c['n']}] {c['title']} pág {c['page_start']}-{c['page_end']} ({c['chunk_id']})")
+        print(f"    {c['snippet']}...\n")
 
 if __name__ == "__main__":
     main()
-    get_model()
