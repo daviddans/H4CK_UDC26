@@ -1,8 +1,5 @@
-from math import e
 import sys
 
-import ollama
-from pygments.unistring import No
 from ollama_manager import OllamaManager
 from opensearch_manager import OpenSearchManager
 
@@ -17,8 +14,12 @@ def main():
         print("Comandos disponibles:")
         print("  python main.py init              -> Configurar índice y pipeline RRF")
         print("  python main.py index <ruta.pdf>  -> Indexar un PDF")
-        print("  python main.py search <query>    -> Búsqueda de alta precisión (3 vías)")
-        print("  python main.py ask_ai <query>    -> Búsqueda + Respuesta de IA (RRF + Ollama)")
+        print(
+            "  python main.py search <query>    -> Búsqueda de alta precisión (3 vías)"
+        )
+        print(
+            "  python main.py ask_ai <query>    -> Búsqueda + Respuesta de IA (RRF + Ollama)"
+        )
         return
 
     manager = OpenSearchManager()
@@ -56,18 +57,17 @@ def main():
 
             return
     elif comando == "ask_ai":
-        print("Realiza una busqueda")
-        if len(sys.argv) < 3:
-            print("Error: Realiza una busqueda primero")
-        else:
-            busqueda = " ".join(sys.argv[2:])
-            res = manager.hybrid_search_rrf(INDEX_NAME, busqueda)
-            if not res:
-                print("No se encontraron resultados para la búsqueda.")
-                return -1
-            question = input("¿Qué quieres preguntarle a la IA? ")
-            ollama_response = ollama_manager.generate_answer(question, [hit["_source"]["content"] for hit in res["hits"]["hits"]])
-            print(f"\n--- Respuesta de la IA ---\n{ollama_response}\n" + "-" * 40)
+        question = input("¿Qué quieres preguntarle a la IA? ")
+        res = manager.hybrid_search_rrf(INDEX_NAME, question)
+
+        if not res:
+            print("No se encontraron resultados para la búsqueda.")
+            return -1
+
+        ollama_response = ollama_manager.generate_answer(
+            question, [hit["_source"]["content"] for hit in res["hits"]["hits"]]
+        )
+        print(f"\n--- Respuesta de la IA ---\n{ollama_response}\n" + "-" * 40)
 
 
 if __name__ == "__main__":
