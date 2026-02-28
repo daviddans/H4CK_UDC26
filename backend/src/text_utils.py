@@ -1,6 +1,7 @@
 import re
 
-_SENT_SPLIT = re.compile(r'(?<=[\.\?\!])\s+')
+_SENT_SPLIT = re.compile(r"(?<=[\.\?\!])\s+")
+
 
 def crear_chunks(texto: str, max_words: int = 260, overlap_words: int = 50):
     """
@@ -12,8 +13,10 @@ def crear_chunks(texto: str, max_words: int = 260, overlap_words: int = 50):
         return []
 
     # limpieza mínima útil en PDF
-    texto = re.sub(r'\s+', ' ', texto).strip()
-    texto = texto.replace("- ", "")  # opcional: arreglar cortes con guion (depende del extractor)
+    texto = re.sub(r"\s+", " ", texto).strip()
+    texto = texto.replace(
+        "- ", ""
+    )  # opcional: arreglar cortes con guion (depende del extractor)
 
     # 1) Intento por frases
     sentences = _SENT_SPLIT.split(texto)
@@ -21,7 +24,9 @@ def crear_chunks(texto: str, max_words: int = 260, overlap_words: int = 50):
 
     # Si hay pocas frases, el texto viene “raro” => fallback a palabras
     if len(sentences) < 5:
-        return _chunks_por_palabras(texto, max_words=max_words, overlap_words=overlap_words)
+        return _chunks_por_palabras(
+            texto, max_words=max_words, overlap_words=overlap_words
+        )
 
     chunks = []
     current = []
@@ -45,7 +50,9 @@ def crear_chunks(texto: str, max_words: int = 260, overlap_words: int = 50):
             flush()
             # si una frase ya es enorme, la partimos por palabras
             if len(w) > max_words:
-                sub = _chunks_por_palabras(s, max_words=max_words, overlap_words=overlap_words)
+                sub = _chunks_por_palabras(
+                    s, max_words=max_words, overlap_words=overlap_words
+                )
                 chunks.extend(sub)
             else:
                 current.append(s)
@@ -67,6 +74,7 @@ def crear_chunks(texto: str, max_words: int = 260, overlap_words: int = 50):
 
     return chunks
 
+
 def _chunks_por_palabras(texto: str, max_words: int, overlap_words: int):
     palabras = texto.split()
     if not palabras:
@@ -74,9 +82,10 @@ def _chunks_por_palabras(texto: str, max_words: int, overlap_words: int):
     chunks = []
     step = max(1, max_words - overlap_words)
     for i in range(0, len(palabras), step):
-        chunk = " ".join(palabras[i:i + max_words]).strip()
+        chunk = " ".join(palabras[i : i + max_words]).strip()
         if chunk:
             chunks.append(chunk)
         if i + max_words >= len(palabras):
             break
     return chunks
+

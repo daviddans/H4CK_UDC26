@@ -7,16 +7,16 @@ from pydantic import BaseModel
 
 from ollama_manager import OllamaManager
 from opensearch_manager import OpenSearchManager
-from readpdf import limpiar
+from parser import limpiar
 
 
 manager = OpenSearchManager()
 ollama_manager = OllamaManager(model="qwen2.5:7b-instruct")
 app = FastAPI()
 
-INDEX_NAME = os.getenv("INDEX_NAME", "mi-archivo-inteligente")
-MAX_CONTEXT_CHUNKS = int(os.getenv("ASK_MAX_CONTEXT_CHUNKS", "4"))
-MAX_CHARS_PER_CHUNK = int(os.getenv("ASK_MAX_CHARS_PER_CHUNK", "500"))
+INDEX_NAME = "index"
+MAX_CONTEXT_CHUNKS = 4
+MAX_CHARS_PER_CHUNK = 500
 
 
 class SearchFile(BaseModel):
@@ -236,13 +236,14 @@ def _ask_core(payload: AskRequest):
     return {"answer": answer, "citations": citations}
 
 
-@app.get("/init")
 @app.post("/init")
+@app.get("/init")
 def init_index():
     manager.init_index(INDEX_NAME)
     return {"estado": "ok", "index": INDEX_NAME}
 
 
+@app.post("/add-index")
 @app.get("/add-index")
 def add_index_get(path: str = Query(..., description="Absolute or relative file path")):
     _ensure_index(INDEX_NAME)
@@ -251,6 +252,7 @@ def add_index_get(path: str = Query(..., description="Absolute or relative file 
 
 
 @app.post("/add-index")
+@app.get("/add-index")
 def add_index_post(payload: AddIndexRequest):
     file_path = payload.path or (payload.file.path if payload.file else None)
     if not file_path:
@@ -262,7 +264,7 @@ def add_index_post(payload: AddIndexRequest):
 
 
 @app.post("/search")
-@app.post("/search ")
+@app.get("/search")
 def search_file(payload: SearchRequest):
     query_text = _get_query_text(payload)
     if not query_text:
@@ -280,7 +282,6 @@ def search_file(payload: SearchRequest):
     return result
 
 
-@app.post("/ask")
 @app.post("/ask_ai")
 def ask_file(payload: AskRequest):
     return _ask_core(payload)

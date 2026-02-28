@@ -1,4 +1,3 @@
-from PIL import Image
 from PyPDF2 import PdfReader
 from datetime import datetime
 from pdf2image import convert_from_path
