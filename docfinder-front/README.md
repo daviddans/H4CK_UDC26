@@ -19,6 +19,8 @@ Crear `docfinder-front/.env.local`:
 BACKEND_URL=http://127.0.0.1:8000
 # opcional, para persistir ficheros subidos antes de indexar
 BACKEND_UPLOAD_DIR=/tmp/docfinder_uploads
+
+uvicorn endpoint:app --reload --port 8000 
 ```
 
 ## Contratos usados
