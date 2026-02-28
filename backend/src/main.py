@@ -42,7 +42,7 @@ def main():
                 for hit in res["hits"]["hits"]:
                     score = hit["_score"]
                     src = hit["_source"]["metadata"]["source"]
-                    txt = hit["_source"]["content"][:200]
+                    txt = hit["_source"]["content"][:]
                     print(f"ID: {src} | Score RRF: {score:.6f}")
                     print(f"Texto: {txt}...\n" + "-" * 40)
             else:
