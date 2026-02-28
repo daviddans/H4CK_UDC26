@@ -14,9 +14,9 @@ manager = OpenSearchManager()
 ollama_manager = OllamaManager(model="qwen2.5:7b-instruct")
 app = FastAPI()
 
-INDEX_NAME = os.getenv("INDEX_NAME", "mi-archivo-inteligente")
-MAX_CONTEXT_CHUNKS = int(os.getenv("ASK_MAX_CONTEXT_CHUNKS", "4"))
-MAX_CHARS_PER_CHUNK = int(os.getenv("ASK_MAX_CHARS_PER_CHUNK", "500"))
+INDEX_NAME = "index"
+MAX_CONTEXT_CHUNKS = 4
+MAX_CHARS_PER_CHUNK = 500
 
 
 class SearchFile(BaseModel):

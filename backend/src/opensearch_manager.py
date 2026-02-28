@@ -37,7 +37,11 @@ class OpenSearchManager:
             "phase_results_processors": [
                 {
                     "normalization-processor": {
+                        # Para normalizar los datos se utiliza min_max para escalar
+                        # los numeros en un rango de [0,1]
                         "normalization": {"technique": "min_max"},
+                        # Permite combinar los distintos resultados obtenidos haciendo una ponderacion
+                        # armonica
                         "combination": {
                             "technique": "harmonic_mean",
                             "parameters": {
@@ -71,6 +75,7 @@ class OpenSearchManager:
                         "dimension": 384,
                         "method": {
                             "name": "hnsw",
+                            # Se compara la diferencia en entre los grados de los vectores
                             "space_type": "cosinesimil",
                             "engine": "faiss",
                         },
@@ -101,8 +106,7 @@ class OpenSearchManager:
             self.client.indices.delete(index=index_name)
         self.client.indices.create(index=index_name, body=index_body)
 
-    # Modifica esta función dentro de opensearch_manager.py
-    def index_pdf(
+    def index_document(
         self, index_name, file_path, texto, autor, creation_date, lang, tags=None
     ):
         """Indexación usando el texto y metadatos ya extraídos."""
@@ -112,6 +116,7 @@ class OpenSearchManager:
         # Ahora texto es un string, crear_chunks funcionará correctamente
         chunks = crear_chunks(texto)
 
+        # Permite juntar todos los chunks
         def acciones_bulk():
             for i, chunk in enumerate(chunks):
                 texto_para_embedding = f"passage: {chunk}"
@@ -138,9 +143,8 @@ class OpenSearchManager:
         helpers.bulk(self.client, acciones_bulk())
 
     def hybrid_search_rrf(self, index_name, query_text, top_k=10):
-        """Búsqueda de 3 vías para maximizar la precisión literal y semántica."""
+        """Realiza la busqueda aplicando los diferentes metodos indexados y sematicos"""
         try:
-            # Prefijo 'query: ' para búsqueda semántica
             vector_busqueda = self.model.encode(f"query: {query_text}").tolist()
 
             query_body = {
