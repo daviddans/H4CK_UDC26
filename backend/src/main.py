@@ -1,16 +1,9 @@
 import sys
-from opensearch_manager import OpenSearchManager
 
 INDEX_NAME = "mi-archivo-inteligente"
 
 
-def main():
-    if len(sys.argv) < 2:
-        print("\nComandos disponibles:")
-        print("  python main.py init              -> Configurar índice")
-        print("  python main.py index <ruta.pdf>  -> Indexar un PDF")
-        print("  python main.py search <texto>    -> Buscar")
-        return
+INDEXNAME = "my-index"
 
     try:
         manager = OpenSearchManager()
