@@ -64,17 +64,17 @@ def search(payload: QueryRequest):
 def ask_ai(payload: QueryRequest):
     """Busca contexto y genera una respuesta con la IA."""
     # 1. Buscar los 4 fragmentos más relevantes
-    search_result = search_manager.hybrid_search_rrf(INDEX_NAME, payload.query, top_k=4)
+    search_result = search_manager.hybrid_search_rrf(INDEX_NAME, payload.query, top_k=5)
 
     hits = search_result.get("hits", {}).get("hits", [])
     if not hits:
         return {"answer": "No encontré información sobre eso.", "sources": []}
 
     # 2. Extraer solo el contenido de texto para la IA
-    context_chunks = [hit["_source"]["content"] for hit in hits]
+    context_data = [hit["_source"] for hit in hits]
 
     # 3. Generar respuesta con Ollama
-    answer = ai_manager.generate_answer(payload.query, context_chunks)
+    answer = ai_manager.generate_answer(payload.query, context_data)
 
     # 4. Preparar fuentes simplificadas
     sources = []
