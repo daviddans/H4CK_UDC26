@@ -220,6 +220,10 @@ export default function HomePage() {
   }, [filters, mode, page, query, router, stateReady, view]);
 
   const libraryMode = mode === "search" && query.trim().length === 0;
+  const searchQueryParam = query.trim();
+  const encodedSearchQueryParam = searchQueryParam
+    ? encodeURIComponent(searchQueryParam)
+    : "";
   const visibleDocIds = useMemo(
     () => Array.from(new Set(data.hits.map((hit) => hit.doc_id))),
     [data.hits]
@@ -937,7 +941,9 @@ export default function HomePage() {
                         detailHref={
                           libraryMode
                             ? `/document/${hit.doc_id}?from=library`
-                            : `/document/${hit.doc_id}?from=search`
+                            : `/document/${hit.doc_id}?from=search${
+                                encodedSearchQueryParam ? `&q=${encodedSearchQueryParam}` : ""
+                              }`
                         }
                       />
                     ))}

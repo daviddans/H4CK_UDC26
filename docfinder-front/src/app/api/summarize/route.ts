@@ -56,7 +56,7 @@ function extractiveFallback(context: string, targetLines: number) {
 }
 
 export async function POST(req: Request) {
-  const body = (await req.json()) as SummarizeRequest;
+  const body = (await req.json().catch(() => ({}))) as SummarizeRequest;
   const title = (body.title ?? "documento").trim();
   const context = (body.context ?? "").replace(/\s+/g, " ").trim();
   const lines = clampLines(body.lines);

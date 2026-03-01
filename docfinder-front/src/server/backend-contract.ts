@@ -95,10 +95,6 @@ function hasValue(value: number | string | undefined) {
   return false;
 }
 
-function escapeCharClass(value: string) {
-  return value.replace(/[-\\\]^]/g, "\\$&");
-}
-
 function escapeHtml(value: string) {
   return value
     .replaceAll("&", "&amp;")
@@ -191,22 +187,8 @@ function makeDocId(source: string) {
   return `BACK-${slug || "document"}`;
 }
 
-const DIACRITIC_EQUIVALENTS: Record<string, string> = {
-  a: "aàáâãäåāăą",
-  c: "cçćč",
-  d: "dďđ",
-  e: "eèéêëēĕėęě",
-  i: "iìíîïīĭįı",
-  l: "lł",
-  n: "nñńň",
-  o: "oòóôõöōŏőø",
-  r: "rŕř",
-  s: "sśŝşš",
-  t: "tţť",
-  u: "uùúûüūŭůűų",
-  y: "yýÿ",
-  z: "zźżž",
-};
+const MIN_SNIPPET_HIGHLIGHT_SIMILARITY = 0.8;
+const MAX_LENGTH_DELTA_RATIO = 0.3;
 
 type TextRange = { start: number; end: number };
 
@@ -218,26 +200,74 @@ function normalizeToken(value: string) {
     .toLowerCase();
 }
 
-function buildLooseTokenRegex(token: string) {
-  const chars = [...token];
-  if (!chars.length) {
-    return null;
+function reverseToken(value: string) {
+  return [...value].reverse().join("");
+}
+
+function levenshteinDistance(a: string, b: string) {
+  const rows = a.length + 1;
+  const cols = b.length + 1;
+  const dp = Array.from({ length: rows }, () => Array<number>(cols).fill(0));
+
+  for (let i = 0; i < rows; i += 1) {
+    dp[i][0] = i;
+  }
+  for (let j = 0; j < cols; j += 1) {
+    dp[0][j] = j;
   }
 
-  const separatorPattern = "[\\s\\p{P}\\p{S}_-]*";
-  const flexibleGap = token.length >= 5 ? "(?:[\\p{L}\\p{N}])?" : "";
-  const pattern = chars
-    .map((char) => {
-      const mapped = DIACRITIC_EQUIVALENTS[char] ?? char;
-      return `[${escapeCharClass(mapped)}]`;
-    })
-    .join(`${separatorPattern}${flexibleGap}`);
-
-  try {
-    return new RegExp(pattern, "giu");
-  } catch {
-    return null;
+  for (let i = 1; i < rows; i += 1) {
+    for (let j = 1; j < cols; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + cost
+      );
+    }
   }
+
+  return dp[a.length][b.length];
+}
+
+function similarityRatio(a: string, b: string) {
+  const maxLength = Math.max(a.length, b.length);
+  if (!maxLength) {
+    return 1;
+  }
+  return 1 - levenshteinDistance(a, b) / maxLength;
+}
+
+function shouldHighlightWord(wordNorm: string, tokenNorm: string) {
+  if (!wordNorm || !tokenNorm) {
+    return false;
+  }
+  if (wordNorm === tokenNorm) {
+    return true;
+  }
+
+  // Tokens very short are too noisy for fuzzy matching.
+  if (wordNorm.length <= 3 || tokenNorm.length <= 3) {
+    return false;
+  }
+
+  // Prevent mirrored matches like "al" <-> "la".
+  if (wordNorm === reverseToken(tokenNorm)) {
+    return false;
+  }
+  if (wordNorm[0] !== tokenNorm[0]) {
+    return false;
+  }
+
+  const maxLength = Math.max(wordNorm.length, tokenNorm.length);
+  if (
+    maxLength > 0 &&
+    Math.abs(wordNorm.length - tokenNorm.length) / maxLength > MAX_LENGTH_DELTA_RATIO
+  ) {
+    return false;
+  }
+
+  return similarityRatio(wordNorm, tokenNorm) >= MIN_SNIPPET_HIGHLIGHT_SIMILARITY;
 }
 
 function mergeRanges(ranges: TextRange[]) {
@@ -261,25 +291,24 @@ function mergeRanges(ranges: TextRange[]) {
   return merged;
 }
 
-function collectMatchRanges(text: string, regexes: RegExp[]) {
+function collectMatchRanges(text: string, tokens: string[]) {
   const ranges: TextRange[] = [];
   const MAX_RANGES = 80;
 
-  for (const regex of regexes) {
-    regex.lastIndex = 0;
-    let match = regex.exec(text);
-    while (match) {
-      const value = match[0];
-      if (value) {
-        ranges.push({ start: match.index, end: match.index + value.length });
-        if (ranges.length >= MAX_RANGES) {
-          return mergeRanges(ranges);
-        }
-      }
-      if (regex.lastIndex === match.index) {
-        regex.lastIndex += 1;
-      }
-      match = regex.exec(text);
+  for (const match of text.matchAll(/[\p{L}\p{N}]+/gu)) {
+    const rawWord = match[0] ?? "";
+    const start = match.index ?? -1;
+    if (start < 0 || !rawWord) {
+      continue;
+    }
+    const wordNorm = normalizeToken(rawWord);
+    if (!tokens.some((token) => shouldHighlightWord(wordNorm, token))) {
+      continue;
+    }
+
+    ranges.push({ start, end: start + rawWord.length });
+    if (ranges.length >= MAX_RANGES) {
+      return mergeRanges(ranges);
     }
   }
 
@@ -330,11 +359,7 @@ function makeSnippet(content: string, queryText: string) {
     )
   ).slice(0, 8);
 
-  const tokenRegexes = tokens
-    .map((token) => buildLooseTokenRegex(token))
-    .filter((regex): regex is RegExp => Boolean(regex));
-
-  const ranges = collectMatchRanges(clean, tokenRegexes);
+  const ranges = collectMatchRanges(clean, tokens);
 
   let from = 0;
   if (ranges.length) {

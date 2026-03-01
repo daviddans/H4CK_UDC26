@@ -1,0 +1,488 @@
+{
+  "byDocId": {
+    "UPL-47CF42D9": {
+      "doc_id": "UPL-47CF42D9",
+      "source_name": "ventas_enero_2025.csv",
+      "original_name": "ventas_enero_2025.csv",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/ventas_enero_2025.csv",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:39.810Z"
+    },
+    "UPL-21F6FB00": {
+      "doc_id": "UPL-21F6FB00",
+      "source_name": "proveedores_activos.txt",
+      "original_name": "proveedores_activos.txt",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/proveedores_activos.txt",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:40.570Z"
+    },
+    "UPL-369C46B7": {
+      "doc_id": "UPL-369C46B7",
+      "source_name": "propuesta_smart_port_2024.pdf",
+      "original_name": "propuesta_smart_port_2024.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/propuesta_smart_port_2024.pdf",
+      "page_count": 5,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:41.035Z"
+    },
+    "UPL-E8030FFF": {
+      "doc_id": "UPL-E8030FFF",
+      "source_name": "presupuesto_2025_novatech.xlsx",
+      "original_name": "presupuesto_2025_novatech.xlsx",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/presupuesto_2025_novatech.xlsx",
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:41.505Z"
+    },
+    "UPL-BE664C78": {
+      "doc_id": "UPL-BE664C78",
+      "source_name": "pliego_condiciones_licitacion_2024.pdf",
+      "original_name": "pliego_condiciones_licitacion_2024.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/pliego_condiciones_licitacion_2024.pdf",
+      "page_count": 8,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:41.909Z"
+    },
+    "UPL-9A9537C7": {
+      "doc_id": "UPL-9A9537C7",
+      "source_name": "pedido_PO-2024-0156.pdf",
+      "original_name": "pedido_PO-2024-0156.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/pedido_PO-2024-0156.pdf",
+      "page_count": 2,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:42.609Z"
+    },
+    "UPL-21594544": {
+      "doc_id": "UPL-21594544",
+      "source_name": "offer_letter_eng_position_2024.pdf",
+      "original_name": "offer_letter_eng_position_2024.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/offer_letter_eng_position_2024.pdf",
+      "page_count": 2,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:43.027Z"
+    },
+    "UPL-72DE75E2": {
+      "doc_id": "UPL-72DE75E2",
+      "source_name": "nominas_resumen_dic2024.xlsx",
+      "original_name": "nominas_resumen_dic2024.xlsx",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/nominas_resumen_dic2024.xlsx",
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:43.471Z"
+    },
+    "UPL-62D63A6A": {
+      "doc_id": "UPL-62D63A6A",
+      "source_name": "nda_novatech_greenfield_2023.pdf",
+      "original_name": "nda_novatech_greenfield_2023.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/nda_novatech_greenfield_2023.pdf",
+      "page_count": 5,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:43.830Z"
+    },
+    "UPL-EF30BB1E": {
+      "doc_id": "UPL-EF30BB1E",
+      "source_name": "memo_teletrabajo_2024.txt",
+      "original_name": "memo_teletrabajo_2024.txt",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/memo_teletrabajo_2024.txt",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:44.480Z"
+    },
+    "UPL-FE445B77": {
+      "doc_id": "UPL-FE445B77",
+      "source_name": "manual_panel_iot_v2.pdf",
+      "original_name": "manual_panel_iot_v2.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/manual_panel_iot_v2.pdf",
+      "page_count": 12,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:44.883Z"
+    },
+    "UPL-0C25D4A5": {
+      "doc_id": "UPL-0C25D4A5",
+      "source_name": "inventario_equipos_IT.csv",
+      "original_name": "inventario_equipos_IT.csv",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/inventario_equipos_IT.csv",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:45.553Z"
+    },
+    "UPL-34ECED9C": {
+      "doc_id": "UPL-34ECED9C",
+      "source_name": "informe_sostenibilidad_2023_mares.pdf",
+      "original_name": "informe_sostenibilidad_2023_mares.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/informe_sostenibilidad_2023_mares.pdf",
+      "page_count": 8,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:45.971Z"
+    },
+    "UPL-CC7B5D14": {
+      "doc_id": "UPL-CC7B5D14",
+      "source_name": "informe_financiero_Q3_2024_mares.pdf",
+      "original_name": "informe_financiero_Q3_2024_mares.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/informe_financiero_Q3_2024_mares.pdf",
+      "page_count": 2,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:46.620Z"
+    },
+    "UPL-67C74FCE": {
+      "doc_id": "UPL-67C74FCE",
+      "source_name": "incidencias_soporte_Q4_2024.csv",
+      "original_name": "incidencias_soporte_Q4_2024.csv",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/incidencias_soporte_Q4_2024.csv",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:47.038Z"
+    },
+    "UPL-700529A6": {
+      "doc_id": "UPL-700529A6",
+      "source_name": "ficha_tecnica_RX400.pdf",
+      "original_name": "ficha_tecnica_RX400.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/ficha_tecnica_RX400.pdf",
+      "page_count": 26,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:47.684Z"
+    },
+    "UPL-54F1FA09": {
+      "doc_id": "UPL-54F1FA09",
+      "source_name": "factura_GAL-2024-0892.pdf",
+      "original_name": "factura_GAL-2024-0892.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/factura_GAL-2024-0892.pdf",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:48.119Z"
+    },
+    "UPL-0ED4EA31": {
+      "doc_id": "UPL-0ED4EA31",
+      "source_name": "email_seguimiento_aurora.txt",
+      "original_name": "email_seguimiento_aurora.txt",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/email_seguimiento_aurora.txt",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:48.851Z"
+    },
+    "UPL-6D7E7050": {
+      "doc_id": "UPL-6D7E7050",
+      "source_name": "document_zh.txt",
+      "original_name": "document_zh.txt",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/document_zh.txt",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:49.260Z"
+    },
+    "UPL-733C4214": {
+      "doc_id": "UPL-733C4214",
+      "source_name": "document_en.pdf",
+      "original_name": "document_en.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/document_en.pdf",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:49.299Z"
+    },
+    "UPL-7D67CC06": {
+      "doc_id": "UPL-7D67CC06",
+      "source_name": "contrato_novatech_2024.pdf",
+      "original_name": "contrato_novatech_2024.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/contrato_novatech_2024.pdf",
+      "page_count": 5,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:49.611Z"
+    },
+    "UPL-8B77EC6C": {
+      "doc_id": "UPL-8B77EC6C",
+      "source_name": "contrato_alquiler_oficina_vigo.pdf",
+      "original_name": "contrato_alquiler_oficina_vigo.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/contrato_alquiler_oficina_vigo.pdf",
+      "page_count": 5,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:50.272Z"
+    },
+    "UPL-544E2716": {
+      "doc_id": "UPL-544E2716",
+      "source_name": "certificado_ISO9001_novatech.pdf",
+      "original_name": "certificado_ISO9001_novatech.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/certificado_ISO9001_novatech.pdf",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:50.798Z"
+    },
+    "UPL-8E946ACA": {
+      "doc_id": "UPL-8E946ACA",
+      "source_name": "catalogo_productos_2024.pdf",
+      "original_name": "catalogo_productos_2024.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/catalogo_productos_2024.pdf",
+      "page_count": 6,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:51.150Z"
+    },
+    "UPL-0DC28C28": {
+      "doc_id": "UPL-0DC28C28",
+      "source_name": "auditoria_interna_2024.pdf",
+      "original_name": "auditoria_interna_2024.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/auditoria_interna_2024.pdf",
+      "page_count": 5,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:51.609Z"
+    },
+    "UPL-B6572B5E": {
+      "doc_id": "UPL-B6572B5E",
+      "source_name": "acta_reunion_aurora_20250110.txt",
+      "original_name": "acta_reunion_aurora_20250110.txt",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/acta_reunion_aurora_20250110.txt",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:52.132Z"
+    },
+    "UPL-E2619C15": {
+      "doc_id": "UPL-E2619C15",
+      "source_name": "acta_constitucion_novatech.pdf",
+      "original_name": "acta_constitucion_novatech.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/acta_constitucion_novatech.pdf",
+      "page_count": 2,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:52.550Z"
+    }
+  },
+  "bySource": {
+    "ventas_enero_2025.csv": {
+      "doc_id": "UPL-47CF42D9",
+      "source_name": "ventas_enero_2025.csv",
+      "original_name": "ventas_enero_2025.csv",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/ventas_enero_2025.csv",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:39.810Z"
+    },
+    "proveedores_activos.txt": {
+      "doc_id": "UPL-21F6FB00",
+      "source_name": "proveedores_activos.txt",
+      "original_name": "proveedores_activos.txt",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/proveedores_activos.txt",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:40.570Z"
+    },
+    "propuesta_smart_port_2024.pdf": {
+      "doc_id": "UPL-369C46B7",
+      "source_name": "propuesta_smart_port_2024.pdf",
+      "original_name": "propuesta_smart_port_2024.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/propuesta_smart_port_2024.pdf",
+      "page_count": 5,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:41.035Z"
+    },
+    "presupuesto_2025_novatech.xlsx": {
+      "doc_id": "UPL-E8030FFF",
+      "source_name": "presupuesto_2025_novatech.xlsx",
+      "original_name": "presupuesto_2025_novatech.xlsx",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/presupuesto_2025_novatech.xlsx",
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:41.505Z"
+    },
+    "pliego_condiciones_licitacion_2024.pdf": {
+      "doc_id": "UPL-BE664C78",
+      "source_name": "pliego_condiciones_licitacion_2024.pdf",
+      "original_name": "pliego_condiciones_licitacion_2024.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/pliego_condiciones_licitacion_2024.pdf",
+      "page_count": 8,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:41.909Z"
+    },
+    "pedido_PO-2024-0156.pdf": {
+      "doc_id": "UPL-9A9537C7",
+      "source_name": "pedido_PO-2024-0156.pdf",
+      "original_name": "pedido_PO-2024-0156.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/pedido_PO-2024-0156.pdf",
+      "page_count": 2,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:42.609Z"
+    },
+    "offer_letter_eng_position_2024.pdf": {
+      "doc_id": "UPL-21594544",
+      "source_name": "offer_letter_eng_position_2024.pdf",
+      "original_name": "offer_letter_eng_position_2024.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/offer_letter_eng_position_2024.pdf",
+      "page_count": 2,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:43.027Z"
+    },
+    "nominas_resumen_dic2024.xlsx": {
+      "doc_id": "UPL-72DE75E2",
+      "source_name": "nominas_resumen_dic2024.xlsx",
+      "original_name": "nominas_resumen_dic2024.xlsx",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/nominas_resumen_dic2024.xlsx",
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:43.471Z"
+    },
+    "nda_novatech_greenfield_2023.pdf": {
+      "doc_id": "UPL-62D63A6A",
+      "source_name": "nda_novatech_greenfield_2023.pdf",
+      "original_name": "nda_novatech_greenfield_2023.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/nda_novatech_greenfield_2023.pdf",
+      "page_count": 5,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:43.830Z"
+    },
+    "memo_teletrabajo_2024.txt": {
+      "doc_id": "UPL-EF30BB1E",
+      "source_name": "memo_teletrabajo_2024.txt",
+      "original_name": "memo_teletrabajo_2024.txt",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/memo_teletrabajo_2024.txt",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:44.480Z"
+    },
+    "manual_panel_iot_v2.pdf": {
+      "doc_id": "UPL-FE445B77",
+      "source_name": "manual_panel_iot_v2.pdf",
+      "original_name": "manual_panel_iot_v2.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/manual_panel_iot_v2.pdf",
+      "page_count": 12,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:44.883Z"
+    },
+    "inventario_equipos_IT.csv": {
+      "doc_id": "UPL-0C25D4A5",
+      "source_name": "inventario_equipos_IT.csv",
+      "original_name": "inventario_equipos_IT.csv",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/inventario_equipos_IT.csv",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:45.553Z"
+    },
+    "informe_sostenibilidad_2023_mares.pdf": {
+      "doc_id": "UPL-34ECED9C",
+      "source_name": "informe_sostenibilidad_2023_mares.pdf",
+      "original_name": "informe_sostenibilidad_2023_mares.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/informe_sostenibilidad_2023_mares.pdf",
+      "page_count": 8,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:45.971Z"
+    },
+    "informe_financiero_Q3_2024_mares.pdf": {
+      "doc_id": "UPL-CC7B5D14",
+      "source_name": "informe_financiero_Q3_2024_mares.pdf",
+      "original_name": "informe_financiero_Q3_2024_mares.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/informe_financiero_Q3_2024_mares.pdf",
+      "page_count": 2,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:46.620Z"
+    },
+    "incidencias_soporte_Q4_2024.csv": {
+      "doc_id": "UPL-67C74FCE",
+      "source_name": "incidencias_soporte_Q4_2024.csv",
+      "original_name": "incidencias_soporte_Q4_2024.csv",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/incidencias_soporte_Q4_2024.csv",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:47.038Z"
+    },
+    "ficha_tecnica_RX400.pdf": {
+      "doc_id": "UPL-700529A6",
+      "source_name": "ficha_tecnica_RX400.pdf",
+      "original_name": "ficha_tecnica_RX400.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/ficha_tecnica_RX400.pdf",
+      "page_count": 26,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:47.684Z"
+    },
+    "factura_GAL-2024-0892.pdf": {
+      "doc_id": "UPL-54F1FA09",
+      "source_name": "factura_GAL-2024-0892.pdf",
+      "original_name": "factura_GAL-2024-0892.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/factura_GAL-2024-0892.pdf",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:48.119Z"
+    },
+    "email_seguimiento_aurora.txt": {
+      "doc_id": "UPL-0ED4EA31",
+      "source_name": "email_seguimiento_aurora.txt",
+      "original_name": "email_seguimiento_aurora.txt",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/email_seguimiento_aurora.txt",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:48.851Z"
+    },
+    "document_zh.txt": {
+      "doc_id": "UPL-6D7E7050",
+      "source_name": "document_zh.txt",
+      "original_name": "document_zh.txt",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/document_zh.txt",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:49.260Z"
+    },
+    "document_en.pdf": {
+      "doc_id": "UPL-733C4214",
+      "source_name": "document_en.pdf",
+      "original_name": "document_en.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/document_en.pdf",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:49.299Z"
+    },
+    "contrato_novatech_2024.pdf": {
+      "doc_id": "UPL-7D67CC06",
+      "source_name": "contrato_novatech_2024.pdf",
+      "original_name": "contrato_novatech_2024.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/contrato_novatech_2024.pdf",
+      "page_count": 5,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:49.611Z"
+    },
+    "contrato_alquiler_oficina_vigo.pdf": {
+      "doc_id": "UPL-8B77EC6C",
+      "source_name": "contrato_alquiler_oficina_vigo.pdf",
+      "original_name": "contrato_alquiler_oficina_vigo.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/contrato_alquiler_oficina_vigo.pdf",
+      "page_count": 5,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:50.272Z"
+    },
+    "certificado_ISO9001_novatech.pdf": {
+      "doc_id": "UPL-544E2716",
+      "source_name": "certificado_ISO9001_novatech.pdf",
+      "original_name": "certificado_ISO9001_novatech.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/certificado_ISO9001_novatech.pdf",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:50.798Z"
+    },
+    "catalogo_productos_2024.pdf": {
+      "doc_id": "UPL-8E946ACA",
+      "source_name": "catalogo_productos_2024.pdf",
+      "original_name": "catalogo_productos_2024.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/catalogo_productos_2024.pdf",
+      "page_count": 6,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:51.150Z"
+    },
+    "auditoria_interna_2024.pdf": {
+      "doc_id": "UPL-0DC28C28",
+      "source_name": "auditoria_interna_2024.pdf",
+      "original_name": "auditoria_interna_2024.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/auditoria_interna_2024.pdf",
+      "page_count": 5,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:51.609Z"
+    },
+    "acta_reunion_aurora_20250110.txt": {
+      "doc_id": "UPL-B6572B5E",
+      "source_name": "acta_reunion_aurora_20250110.txt",
+      "original_name": "acta_reunion_aurora_20250110.txt",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/acta_reunion_aurora_20250110.txt",
+      "page_count": 1,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:52.132Z"
+    },
+    "acta_constitucion_novatech.pdf": {
+      "doc_id": "UPL-E2619C15",
+      "source_name": "acta_constitucion_novatech.pdf",
+      "original_name": "acta_constitucion_novatech.pdf",
+      "saved_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/acta_constitucion_novatech.pdf",
+      "page_count": 2,
+      "tags": [],
+      "uploaded_at": "2026-03-01T07:02:52.550Z"
+    }
+  }
+}

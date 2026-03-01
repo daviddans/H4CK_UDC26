@@ -1,5 +1,3 @@
-import path from "node:path";
-
 import { NextResponse } from "next/server";
 
 import {
@@ -7,6 +5,7 @@ import {
   initBackendIndex,
   mapBackendHits,
   searchBackendRaw,
+  snippetToText,
 } from "@/server/backend-contract";
 import { cacheHits } from "@/store/search-cache";
 import type { AskResponse, DocumentHit } from "@/types/docfinder";
@@ -29,6 +28,7 @@ type BackendAskResponse = {
 
 type AskProbeResult = {
   response: AskResponse | null;
+  unavailable: boolean;
   errors: string[];
 };
 
@@ -408,7 +408,7 @@ async function loadSearchContext(baseUrl: string, question: string): Promise<Sea
 }
 
 export async function POST(req: Request) {
-  const body = (await req.json()) as { question?: string };
+  const body = (await req.json().catch(() => ({}))) as { question?: string };
   const question = body.question?.trim();
   if (!question) {
     return NextResponse.json({ error: "Question is required" }, { status: 400 });

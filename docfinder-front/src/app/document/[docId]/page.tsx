@@ -84,6 +84,181 @@ function snippetHtmlToText(value: string) {
     .trim();
 }
 
+type TextRange = { start: number; end: number };
+
+const MIN_HIGHLIGHT_SIMILARITY = 0.78;
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function normalizeToken(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/\p{M}+/gu, "")
+    .replace(/[^\p{L}\p{N}]+/gu, "")
+    .toLowerCase();
+}
+
+function reverseToken(value: string) {
+  return [...value].reverse().join("");
+}
+
+function levenshteinDistance(a: string, b: string) {
+  const rows = a.length + 1;
+  const cols = b.length + 1;
+  const dp = Array.from({ length: rows }, () => Array<number>(cols).fill(0));
+
+  for (let i = 0; i < rows; i += 1) {
+    dp[i][0] = i;
+  }
+  for (let j = 0; j < cols; j += 1) {
+    dp[0][j] = j;
+  }
+
+  for (let i = 1; i < rows; i += 1) {
+    for (let j = 1; j < cols; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + cost
+      );
+    }
+  }
+
+  return dp[a.length][b.length];
+}
+
+function similarityRatio(a: string, b: string) {
+  const maxLength = Math.max(a.length, b.length);
+  if (maxLength === 0) {
+    return 1;
+  }
+  const distance = levenshteinDistance(a, b);
+  return 1 - distance / maxLength;
+}
+
+function shouldHighlightWord(wordNorm: string, tokenNorm: string) {
+  if (!wordNorm || !tokenNorm) {
+    return false;
+  }
+  if (wordNorm === tokenNorm) {
+    return true;
+  }
+
+  // For short terms, avoid fuzzy noise.
+  if (wordNorm.length <= 3 || tokenNorm.length <= 3) {
+    return false;
+  }
+
+  // Prevent mirrored matches (e.g. "la" <-> "al", "nova" <-> "avon").
+  if (wordNorm === reverseToken(tokenNorm)) {
+    return false;
+  }
+
+  // Keep fuzzy matching anchored to reduce false positives.
+  if (wordNorm[0] !== tokenNorm[0]) {
+    return false;
+  }
+
+  return similarityRatio(wordNorm, tokenNorm) >= MIN_HIGHLIGHT_SIMILARITY;
+}
+
+function mergeRanges(ranges: TextRange[]) {
+  if (!ranges.length) {
+    return [];
+  }
+
+  const sorted = [...ranges].sort((a, b) => a.start - b.start);
+  const merged: TextRange[] = [sorted[0]];
+
+  for (let index = 1; index < sorted.length; index += 1) {
+    const current = sorted[index];
+    const last = merged[merged.length - 1];
+    if (current.start <= last.end) {
+      last.end = Math.max(last.end, current.end);
+      continue;
+    }
+    merged.push(current);
+  }
+
+  return merged;
+}
+
+function collectMatchRanges(text: string, tokens: string[]) {
+  const ranges: TextRange[] = [];
+  const MAX_RANGES = 180;
+
+  for (const match of text.matchAll(/[\p{L}\p{N}]+/gu)) {
+    const rawWord = match[0] ?? "";
+    const start = match.index ?? -1;
+    if (start < 0 || !rawWord) {
+      continue;
+    }
+    const wordNorm = normalizeToken(rawWord);
+    const matches = tokens.some((token) => shouldHighlightWord(wordNorm, token));
+    if (!matches) {
+      continue;
+    }
+
+    ranges.push({ start, end: start + rawWord.length });
+    if (ranges.length >= MAX_RANGES) {
+      return mergeRanges(ranges);
+    }
+  }
+
+  return mergeRanges(ranges);
+}
+
+function markTextBySeed(text: string, seed: string) {
+  const cleanText = text ?? "";
+  const tokens = Array.from(
+    new Set(
+      seed
+        .split(/\s+/)
+        .map((token) => normalizeToken(token.trim()))
+        .filter((token) => token.length > 1)
+    )
+  ).slice(0, 18);
+
+  if (!tokens.length) {
+    return escapeHtml(cleanText);
+  }
+
+  const ranges = collectMatchRanges(cleanText, tokens);
+  if (!ranges.length) {
+    return escapeHtml(cleanText);
+  }
+
+  let html = "";
+  let cursor = 0;
+  for (const range of ranges) {
+    if (range.start > cursor) {
+      html += escapeHtml(cleanText.slice(cursor, range.start));
+    }
+    html += `<mark>${escapeHtml(cleanText.slice(range.start, range.end))}</mark>`;
+    cursor = range.end;
+  }
+  if (cursor < cleanText.length) {
+    html += escapeHtml(cleanText.slice(cursor));
+  }
+  return html;
+}
+
+function extractMarkedTerms(snippetHtml: string) {
+  const terms = Array.from(snippetHtml.matchAll(/<mark>(.*?)<\/mark>/gi))
+    .map((match) => match[1] ?? "")
+    .map((item) => item.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  return terms;
+}
+
 function scoreTone(score: number) {
   if (score >= 1) {
     return "text-emerald-700 dark:text-emerald-300";
@@ -103,6 +278,7 @@ export default function DocumentDetailPage() {
   const searchParams = useSearchParams();
   const docId = params.docId;
   const fromContext = searchParams.get("from");
+  const searchQuery = searchParams.get("q")?.trim() ?? "";
   const includeEvidenceContext = fromContext === "search";
   const pageParam = Number(searchParams.get("page"));
   const requestedPage = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : null;
@@ -204,6 +380,21 @@ export default function DocumentDetailPage() {
     () => rankedEvidence.find((chunk) => chunk.page_start === selectedPage) ?? rankedEvidence[0],
     [rankedEvidence, selectedPage]
   );
+  const highlightSeed = useMemo(() => {
+    const evidenceTerms = rankedEvidence
+      .slice(0, 12)
+      .flatMap((chunk) => extractMarkedTerms(chunk.snippet_html));
+    if (searchQuery) {
+      return searchQuery;
+    }
+    return evidenceTerms.join(" ");
+  }, [rankedEvidence, searchQuery]);
+  const textPreviewHtml = useMemo(() => {
+    if (!textPreview) {
+      return "No preview available";
+    }
+    return markTextBySeed(textPreview, highlightSeed);
+  }, [highlightSeed, textPreview]);
   const hasDownloadUrl = Boolean(document?.download_url);
   const hasOpenUrl = Boolean(document?.open_url);
   const viewerType = document?.viewer_type ?? "binary";
@@ -699,7 +890,10 @@ export default function DocumentDetailPage() {
                   {textPreviewLoading ? (
                     <p>Loading preview...</p>
                   ) : (
-                    <pre className="max-h-[360px] overflow-auto whitespace-pre-wrap">{textPreview || "No preview available"}</pre>
+                    <pre
+                      className="max-h-[360px] overflow-auto whitespace-pre-wrap [&_mark]:rounded-sm [&_mark]:bg-cyan-100 [&_mark]:px-0.5 [&_mark]:text-slate-900 dark:[&_mark]:bg-cyan-500/35 dark:[&_mark]:text-slate-50"
+                      dangerouslySetInnerHTML={{ __html: textPreviewHtml }}
+                    />
                   )}
                 </div>
               ) : (
