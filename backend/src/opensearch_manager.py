@@ -122,7 +122,7 @@ class OpenSearchManager:
                                 "format": "yyyy-MM-dd",
                                 "index": False,
                             },
-                            "type": {"type": "keyword", "index": False},
+                            "lang": {"type": "keyword", "index": False},
                             "tags": {"type": "keyword", "index": False},
                         }
                     },
@@ -161,7 +161,7 @@ class OpenSearchManager:
                             "title": os.path.basename(file_path),
                             "author": autor,
                             "creation_date": creation_date,
-                            "type": lang,
+                            "lang": lang,
                             "tags": tags if isinstance(tags, list) else [],
                         },
                     },
