@@ -3,7 +3,7 @@ import re
 _SENT_SPLIT = re.compile(r"(?<=[\.\?\!])\s+")
 
 
-def crear_chunks(texto: str, max_words: int = 1024, overlap_words: int = 50):
+def crear_chunks(texto: str, max_words: int = 1024, overlap_words: int = 48):
     """
     Chunking robusto para textos continuos (PDF):
     1) Intenta segmentar en frases.
