@@ -17,10 +17,97 @@ type ResultCardProps = {
   deleting?: boolean;
   libraryMode?: boolean;
   detailHref?: string;
+  highlightQuery?: string;
   selectable?: boolean;
   selected?: boolean;
   onToggleSelect?: (docId: string) => void;
 };
+
+type TextRange = { start: number; end: number };
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function normalizeToken(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/\p{M}+/gu, "")
+    .replace(/[^\p{L}\p{N}]+/gu, "")
+    .toLowerCase();
+}
+
+function mergeRanges(ranges: TextRange[]) {
+  if (!ranges.length) {
+    return [];
+  }
+  const sorted = [...ranges].sort((a, b) => a.start - b.start);
+  const merged: TextRange[] = [sorted[0]];
+  for (let index = 1; index < sorted.length; index += 1) {
+    const current = sorted[index];
+    const last = merged[merged.length - 1];
+    if (current.start <= last.end) {
+      last.end = Math.max(last.end, current.end);
+      continue;
+    }
+    merged.push(current);
+  }
+  return merged;
+}
+
+function highlightTitleHtml(title: string, query: string) {
+  const cleanTitle = title ?? "";
+  const tokens = Array.from(
+    new Set(
+      query
+        .split(/\s+/)
+        .map((token) => normalizeToken(token.trim()))
+        .filter((token) => token.length > 1)
+    )
+  ).slice(0, 8);
+
+  if (!tokens.length) {
+    return escapeHtml(cleanTitle);
+  }
+
+  const ranges: TextRange[] = [];
+  for (const match of cleanTitle.matchAll(/[\p{L}\p{N}]+/gu)) {
+    const rawWord = match[0] ?? "";
+    const start = match.index ?? -1;
+    if (start < 0 || !rawWord) {
+      continue;
+    }
+    const wordNorm = normalizeToken(rawWord);
+    if (!tokens.includes(wordNorm)) {
+      continue;
+    }
+    ranges.push({ start, end: start + rawWord.length });
+  }
+
+  const merged = mergeRanges(ranges);
+  if (!merged.length) {
+    return escapeHtml(cleanTitle);
+  }
+
+  let html = "";
+  let cursor = 0;
+  for (const range of merged) {
+    if (range.start > cursor) {
+      html += escapeHtml(cleanTitle.slice(cursor, range.start));
+    }
+    html += `<mark>${escapeHtml(cleanTitle.slice(range.start, range.end))}</mark>`;
+    cursor = range.end;
+  }
+  if (cursor < cleanTitle.length) {
+    html += escapeHtml(cleanTitle.slice(cursor));
+  }
+  return html;
+}
 
 export function ResultCard({
   hit,
@@ -29,6 +116,7 @@ export function ResultCard({
   deleting = false,
   libraryMode = false,
   detailHref,
+  highlightQuery = "",
   selectable = false,
   selected = false,
   onToggleSelect,
@@ -43,6 +131,7 @@ export function ResultCard({
   const safeTotalPages = hit.total_pages
     ? Math.max(hit.total_pages, safePageEnd)
     : undefined;
+  const titleHtml = highlightTitleHtml(hit.title, highlightQuery);
   const hasSinglePage = safePageStart === safePageEnd;
   const pageLabel = safeTotalPages && safeTotalPages > 0
     ? hasSinglePage
@@ -117,7 +206,10 @@ export function ResultCard({
           )}
           <CardTitle className="text-lg leading-6">
             <Link href={href} className="hover:text-cyan-700 dark:hover:text-cyan-300">
-              {hit.title}
+              <span
+                className="title-highlight [&_mark]:rounded-sm [&_mark]:bg-cyan-100 [&_mark]:px-0.5 [&_mark]:text-slate-900 dark:[&_mark]:bg-cyan-500/35 dark:[&_mark]:text-slate-50"
+                dangerouslySetInnerHTML={{ __html: titleHtml }}
+              />
             </Link>
           </CardTitle>
         </CardHeader>

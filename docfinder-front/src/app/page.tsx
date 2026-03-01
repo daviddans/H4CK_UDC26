@@ -932,6 +932,7 @@ export default function HomePage() {
                         key={libraryMode ? hit.doc_id : hit.chunk_id}
                         hit={hit}
                         view={view}
+                        highlightQuery={libraryMode ? "" : query}
                         onDelete={onDeleteFromList}
                         deleting={bulkDeleting || deletingDocId === hit.doc_id}
                         libraryMode={libraryMode}
