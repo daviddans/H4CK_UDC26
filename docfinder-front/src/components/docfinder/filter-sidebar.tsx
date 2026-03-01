@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   addMonths,
   eachDayOfInterval,
@@ -24,7 +24,6 @@ import {
   Languages,
   RotateCcw,
   SlidersHorizontal,
-  Tags,
   X,
 } from "lucide-react";
 
@@ -53,6 +52,10 @@ function toggleValue(current: string[], value: string) {
   return current.includes(value)
     ? current.filter((item) => item !== value)
     : [...current, value];
+}
+
+function normalizeTag(value: string) {
+  return value.trim().toLowerCase();
 }
 
 function parseDateValue(value?: string) {
@@ -278,8 +281,15 @@ function DatePicker({
   );
 }
 
-export function FilterSidebar({ filters, available, onUpdate }: FilterSidebarProps) {
+export function FilterSidebar({
+  filters,
+  available,
+  onUpdate,
+}: FilterSidebarProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [tagOptions, setTagOptions] = useState<string[]>([]);
+  const [tagsLoading, setTagsLoading] = useState(false);
+  const [tagError, setTagError] = useState<string | null>(null);
 
   const activeCount = useMemo(
     () =>
@@ -293,7 +303,51 @@ export function FilterSidebar({ filters, available, onUpdate }: FilterSidebarPro
 
   const quickTypeOptions = available.docTypes.slice(0, 20);
   const quickLangOptions = available.langs.slice(0, 20);
-  const quickTagOptions = available.tags.slice(0, 24);
+  useEffect(() => {
+    setTagOptions((prev) =>
+      Array.from(
+        new Set([...prev, ...available.tags.map(normalizeTag)].filter(Boolean))
+      ).sort((a, b) => a.localeCompare(b))
+    );
+  }, [available.tags]);
+
+  const loadTags = async () => {
+    setTagsLoading(true);
+    setTagError(null);
+    try {
+      const response = await fetch("/api/tags");
+      const payload = (await response.json()) as { tags?: string[]; error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to load tags");
+      }
+      setTagOptions(
+        Array.isArray(payload.tags)
+          ? payload.tags.map(normalizeTag).filter(Boolean)
+          : []
+      );
+    } catch (error) {
+      setTagError(error instanceof Error ? error.message : "Failed to load tags");
+    } finally {
+      setTagsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!advancedOpen) {
+      return;
+    }
+    void loadTags();
+  }, [advancedOpen]);
+
+  const quickTagOptions = useMemo(
+    () =>
+      Array.from(
+        new Set([...available.tags.map(normalizeTag), ...tagOptions].filter(Boolean))
+      )
+        .sort((a, b) => a.localeCompare(b))
+        .slice(0, 60),
+    [available.tags, tagOptions]
+  );
   const fromDate = parseDateValue(filters.from);
   const toDate = parseDateValue(filters.to);
 
@@ -405,7 +459,7 @@ export function FilterSidebar({ filters, available, onUpdate }: FilterSidebarPro
           </FieldBlock>
         </div>
 
-        {(filters.doc_type.length > 0 || filters.lang.length > 0 || filters.tags.length > 0) && (
+        {(filters.doc_type.length > 0 || filters.lang.length > 0) && (
           <div className="flex flex-wrap gap-1.5">
             {filters.doc_type.map((item) => (
               <button
@@ -438,22 +492,6 @@ export function FilterSidebar({ filters, available, onUpdate }: FilterSidebarPro
                 {item} x
               </button>
             ))}
-            {filters.tags.map((item) => (
-              <button
-                key={`tag-${item}`}
-                type="button"
-                onClick={() =>
-                  onUpdate({
-                    ...filters,
-                    tags: filters.tags.filter((value) => value !== item),
-                  })
-                }
-                className="rounded-full border border-cyan-200 bg-cyan-50 px-2 py-1 text-[11px] text-cyan-700 transition hover:bg-cyan-100 dark:border-cyan-500/50 dark:bg-cyan-500/15 dark:text-cyan-200 dark:hover:bg-cyan-500/25"
-              >
-                <Tags className="mr-1 inline-flex h-3 w-3" />
-                {item} x
-              </button>
-            ))}
           </div>
         )}
 
@@ -463,6 +501,10 @@ export function FilterSidebar({ filters, available, onUpdate }: FilterSidebarPro
               <CalendarDays className="h-3.5 w-3.5" />
               Tags
             </div>
+
+            {tagError ? (
+              <p className="mb-2 text-xs text-rose-600 dark:text-rose-300">{tagError}</p>
+            ) : null}
 
             {quickTagOptions.length ? (
               <div className="flex flex-wrap gap-1.5">
@@ -487,7 +529,7 @@ export function FilterSidebar({ filters, available, onUpdate }: FilterSidebarPro
               </div>
             ) : (
               <p className="text-xs text-slate-500 dark:text-slate-300">
-                Run a search to load tag options.
+                {tagsLoading ? "Loading tags..." : "No tags available yet."}
               </p>
             )}
           </div>

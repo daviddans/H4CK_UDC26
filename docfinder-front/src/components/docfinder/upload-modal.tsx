@@ -1,7 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { FileUp, Loader2, Plus, UploadCloud, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  FileUp,
+  Loader2,
+  Plus,
+  UploadCloud,
+  X,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,32 +29,50 @@ type UploadModalProps = {
   suggestedTags?: string[];
 };
 
+type FileJobStatus = "queued" | "uploading" | "indexing" | "done" | "error";
+
+type FileJob = {
+  id: string;
+  file: File;
+  status: FileJobStatus;
+  message?: string;
+  docId?: string;
+};
+
 function normalizeTag(value: string) {
   return value.trim().toLowerCase();
 }
 
+function makeFileId(file: File) {
+  return `${file.name}-${file.size}-${file.lastModified}`;
+}
+
+function statusWeight(status: FileJobStatus) {
+  switch (status) {
+    case "queued":
+      return 0;
+    case "uploading":
+      return 0.4;
+    case "indexing":
+      return 0.75;
+    case "done":
+    case "error":
+      return 1;
+    default:
+      return 0;
+  }
+}
+
 export function UploadModal({ trigger, onUploaded, suggestedTags = [] }: UploadModalProps) {
   const [open, setOpen] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
+  const [jobs, setJobs] = useState<FileJob[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [knownTags, setKnownTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
-  const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(false);
   const [initLoading, setInitLoading] = useState(false);
   const [initMessage, setInitMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const progressLabel = useMemo(() => {
-    if (!loading && progress === 0) {
-      return "Ready";
-    }
-    if (loading) {
-      return `Uploading ${progress}%`;
-    }
-    return "Completed";
-  }, [loading, progress]);
 
   const availableTags = useMemo(() => {
     return Array.from(
@@ -56,6 +83,35 @@ export function UploadModal({ trigger, onUploaded, suggestedTags = [] }: UploadM
       )
     ).sort((a, b) => a.localeCompare(b));
   }, [knownTags, selectedTags, suggestedTags]);
+
+  const progress = useMemo(() => {
+    if (jobs.length === 0) {
+      return 0;
+    }
+    const sum = jobs.reduce((acc, job) => acc + statusWeight(job.status), 0);
+    return Math.round((sum / jobs.length) * 100);
+  }, [jobs]);
+
+  const finishedCount = useMemo(
+    () => jobs.filter((job) => job.status === "done" || job.status === "error").length,
+    [jobs]
+  );
+
+  const progressLabel = useMemo(() => {
+    if (jobs.length === 0) {
+      return "Ready";
+    }
+    if (loading) {
+      return `${finishedCount}/${jobs.length} processed`;
+    }
+    if (finishedCount === jobs.length) {
+      const failed = jobs.filter((job) => job.status === "error").length;
+      return failed > 0
+        ? `Completed with ${failed} error${failed > 1 ? "s" : ""}`
+        : "Completed";
+    }
+    return `${finishedCount}/${jobs.length} processed`;
+  }, [finishedCount, jobs, loading]);
 
   useEffect(() => {
     if (!open) {
@@ -86,11 +142,25 @@ export function UploadModal({ trigger, onUploaded, suggestedTags = [] }: UploadM
     };
   }, [open]);
 
-  const clearTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
+  const addFiles = (files: FileList | File[]) => {
+    const incoming = Array.from(files);
+    if (incoming.length === 0) {
+      return;
     }
+
+    setJobs((prev) => {
+      const existing = new Set(prev.map((job) => job.id));
+      const next = [...prev];
+      for (const file of incoming) {
+        const id = makeFileId(file);
+        if (existing.has(id)) {
+          continue;
+        }
+        existing.add(id);
+        next.push({ id, file, status: "queued" });
+      }
+      return next;
+    });
   };
 
   const addTag = (raw: string) => {
@@ -111,52 +181,83 @@ export function UploadModal({ trigger, onUploaded, suggestedTags = [] }: UploadM
     );
   };
 
+  const updateJob = (id: string, patch: Partial<FileJob>) => {
+    setJobs((prev) => prev.map((job) => (job.id === id ? { ...job, ...patch } : job)));
+  };
+
   const onSubmit = async () => {
-    if (!file) {
-      setError("Please choose a file first.");
+    if (jobs.length === 0) {
+      setError("Please choose at least one file.");
       return;
     }
 
     setError(null);
     setLoading(true);
-    setProgress(0);
 
-    timerRef.current = setInterval(() => {
-      setProgress((prev) => Math.min(prev + 7, 95));
-    }, 120);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("tags", selectedTags.join(","));
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error ?? "Upload failed");
+    const queue = jobs;
+    for (const job of queue) {
+      if (job.status === "done") {
+        continue;
       }
 
-      clearTimer();
-      setProgress(100);
-      onUploaded?.(data.doc_id as string);
-      window.setTimeout(() => {
-        setOpen(false);
-        setLoading(false);
-        setProgress(0);
-        setFile(null);
-        setSelectedTags([]);
-        setTagInput("");
-      }, 500);
-    } catch (err) {
-      clearTimer();
-      setLoading(false);
-      setProgress(0);
-      setError(err instanceof Error ? err.message : "Unexpected upload error");
+      updateJob(job.id, { status: "uploading", message: "Uploading" });
+
+      try {
+        const formData = new FormData();
+        formData.append("file", job.file);
+        formData.append("tags", selectedTags.join(","));
+
+        const response = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = (await response.json()) as {
+          error?: string;
+          doc_id?: string;
+          details?: string[];
+        };
+
+        if (!response.ok) {
+          const reason = data.error ?? "Upload failed";
+          const detail = Array.isArray(data.details) && data.details.length > 0 ? `: ${data.details[0]}` : "";
+          throw new Error(`${reason}${detail}`);
+        }
+
+        updateJob(job.id, { status: "indexing", message: "Indexing" });
+        await new Promise((resolve) => setTimeout(resolve, 220));
+
+        updateJob(job.id, {
+          status: "done",
+          message: "Indexed",
+          docId: data.doc_id,
+        });
+
+        if (data.doc_id) {
+          onUploaded?.(data.doc_id);
+        }
+      } catch (err) {
+        updateJob(job.id, {
+          status: "error",
+          message: err instanceof Error ? err.message : "Unexpected upload error",
+        });
+      }
     }
+
+    setLoading(false);
+  };
+
+  const clearCompleted = () => {
+    setJobs((prev) => prev.filter((job) => job.status !== "done" && job.status !== "error"));
+  };
+
+  const resetAndClose = () => {
+    setOpen(false);
+    setLoading(false);
+    setJobs([]);
+    setTagInput("");
+    setSelectedTags([]);
+    setError(null);
   };
 
   const onInitIndex = async () => {
@@ -196,9 +297,9 @@ export function UploadModal({ trigger, onUploaded, suggestedTags = [] }: UploadM
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Upload document</DialogTitle>
+          <DialogTitle>Upload documents</DialogTitle>
           <DialogDescription>
-            Drop your file and tag it before sending to the index pipeline.
+            Drop multiple files and track each one while it uploads and indexes.
           </DialogDescription>
         </DialogHeader>
 
@@ -228,30 +329,33 @@ export function UploadModal({ trigger, onUploaded, suggestedTags = [] }: UploadM
         )}
 
         <label
-          className="flex min-h-44 cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-center hover:border-cyan-300 hover:bg-cyan-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-cyan-500/60 dark:hover:bg-cyan-500/10"
+          className="flex min-h-40 cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-center hover:border-cyan-300 hover:bg-cyan-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-cyan-500/60 dark:hover:bg-cyan-500/10"
           onDragOver={(event) => event.preventDefault()}
           onDrop={(event) => {
             event.preventDefault();
-            const dropped = event.dataTransfer.files?.[0];
-            if (dropped) {
-              setFile(dropped);
-            }
+            addFiles(event.dataTransfer.files);
           }}
         >
           <FileUp className="h-8 w-8 text-slate-400 dark:text-slate-500" />
           <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-            {file ? file.name : "Drop file here or click to browse"}
+            {jobs.length > 0 ? `${jobs.length} file(s) selected` : "Drop files here or click to browse"}
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-400">PDF, TXT, CSV, XLSX</p>
           <Input
             type="file"
+            multiple
             className="hidden"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            onChange={(event) => {
+              if (event.target.files) {
+                addFiles(event.target.files);
+                event.target.value = "";
+              }
+            }}
           />
         </label>
 
         <div className="space-y-2">
-          <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Tags</p>
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Tags (applied to all selected files)</p>
           <div className="flex items-center gap-2">
             <Input
               value={tagInput}
@@ -322,20 +426,64 @@ export function UploadModal({ trigger, onUploaded, suggestedTags = [] }: UploadM
           <p className="text-xs text-slate-500 dark:text-slate-400">{progressLabel}</p>
         </div>
 
+        {jobs.length > 0 ? (
+          <div className="max-h-48 space-y-2 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50/80 p-2 dark:border-slate-700 dark:bg-slate-900/70">
+            {jobs.map((job) => (
+              <div
+                key={job.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-slate-700 dark:text-slate-200">{job.file.name}</p>
+                  {job.message ? (
+                    <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">{job.message}</p>
+                  ) : null}
+                </div>
+
+                <div className="shrink-0">
+                  {job.status === "queued" ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                      <Clock3 className="h-3 w-3" /> queued
+                    </span>
+                  ) : null}
+                  {job.status === "uploading" || job.status === "indexing" ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-cyan-100 px-2 py-1 text-[11px] font-medium text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-200">
+                      <Loader2 className="h-3 w-3 animate-spin" /> {job.status}
+                    </span>
+                  ) : null}
+                  {job.status === "done" ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200">
+                      <CheckCircle2 className="h-3 w-3" /> done
+                    </span>
+                  ) : null}
+                  {job.status === "error" ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-1 text-[11px] font-medium text-rose-700 dark:bg-rose-500/20 dark:text-rose-200">
+                      <AlertTriangle className="h-3 w-3" /> error
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
         {error && <p className="text-sm font-medium text-rose-600">{error}</p>}
 
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setOpen(false)} disabled={loading}>
-            Cancel
+          <Button variant="secondary" onClick={resetAndClose} disabled={loading}>
+            Close
           </Button>
-          <Button onClick={onSubmit} variant="accent" disabled={loading}>
+          <Button variant="ghost" onClick={clearCompleted} disabled={loading || jobs.length === 0}>
+            Clear finished
+          </Button>
+          <Button onClick={onSubmit} variant="accent" disabled={loading || jobs.length === 0}>
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Uploading
+                Processing
               </>
             ) : (
-              "Upload"
+              "Upload all"
             )}
           </Button>
         </div>

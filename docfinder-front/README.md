@@ -17,8 +17,9 @@ Crear `docfinder-front/.env.local`:
 
 ```bash
 BACKEND_URL=http://127.0.0.1:8000
-# opcional, para persistir ficheros subidos antes de indexar
-BACKEND_UPLOAD_DIR=/tmp/docfinder_uploads
+# opcional, ruta persistente para ficheros subidos antes de indexar
+# por defecto: ../backend/data/uploads
+BACKEND_UPLOAD_DIR=/home/fer/Documents/H4CK_UDC26/backend/data/uploads
 
 uvicorn endpoint:app --reload --port 8000 
 ```

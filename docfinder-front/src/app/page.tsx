@@ -27,7 +27,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE_SEARCH = 6;
+const PAGE_SIZE_LIBRARY = 8;
 
 const DEFAULT_FILTERS: SearchFilters = {
   doc_type: [],
@@ -42,7 +43,7 @@ const INITIAL_DATA: SearchApiResponse = {
   hits: [],
   total: 0,
   page: 1,
-  pageSize: PAGE_SIZE,
+  pageSize: PAGE_SIZE_SEARCH,
   hasMore: false,
   available: {
     docTypes: [],
@@ -74,6 +75,20 @@ export default function HomePage() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [askResponse, setAskResponse] = useState<AskResponse | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [refreshToken, setRefreshToken] = useState(0);
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+  const [searchTick, setSearchTick] = useState(0);
+  const libraryMode = mode === "search" && query.trim().length === 0;
+  const visibleDocIds = useMemo(
+    () => Array.from(new Set(data.hits.map((hit) => hit.doc_id))),
+    [data.hits]
+  );
+  const deletableSelectedDocIds = useMemo(
+    () => selectedDocIds.filter((docId) => docId.startsWith("UPL-")),
+    [selectedDocIds]
+  );
 
   useEffect(() => {
     if (mode !== "search") {
@@ -89,13 +104,14 @@ export default function HomePage() {
       setLoading(true);
       setSearchError(null);
       try {
+        const requestPageSize = libraryMode ? PAGE_SIZE_LIBRARY : PAGE_SIZE_SEARCH;
         const response = await fetch("/api/search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             q: query,
             page,
-            pageSize: PAGE_SIZE,
+            pageSize: requestPageSize,
             mode,
             filters,
           }),
@@ -146,7 +162,99 @@ export default function HomePage() {
       controller.abort();
       window.clearTimeout(timeout);
     };
-  }, [filters, mode, page, query]);
+  }, [filters, mode, page, query, refreshToken, libraryMode, searchTick]);
+
+  useEffect(() => {
+    if (!libraryMode) {
+      setSelectedDocIds([]);
+      return;
+    }
+    const visible = new Set(visibleDocIds);
+    setSelectedDocIds((prev) => prev.filter((docId) => visible.has(docId)));
+  }, [libraryMode, visibleDocIds]);
+
+  const onDeleteFromList = async (docId: string) => {
+    if (deletingDocId || bulkDeleting) {
+      return;
+    }
+
+    const approved = window.confirm(
+      "Delete this local file and metadata? Backend index delete is not available yet."
+    );
+    if (!approved) {
+      return;
+    }
+
+    setDeletingDocId(docId);
+    setSearchError(null);
+    try {
+      const response = await fetch(`/api/documents/${docId}`, { method: "DELETE" });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Delete failed");
+      }
+      setSelectedDocIds((prev) => prev.filter((id) => id !== docId));
+      setRefreshToken((prev) => prev + 1);
+    } catch (error) {
+      setSearchError(error instanceof Error ? error.message : "Delete failed");
+    } finally {
+      setDeletingDocId(null);
+    }
+  };
+
+  const onToggleSelect = (docId: string) => {
+    setSelectedDocIds((prev) =>
+      prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId]
+    );
+  };
+
+  const onDeleteSelected = async () => {
+    if (selectedDocIds.length === 0 || deletingDocId || bulkDeleting) {
+      return;
+    }
+    if (deletableSelectedDocIds.length === 0) {
+      setSearchError("Selected documents cannot be deleted from this view.");
+      return;
+    }
+    const skippedCount = selectedDocIds.length - deletableSelectedDocIds.length;
+
+    const approved = window.confirm(
+      `Delete ${deletableSelectedDocIds.length} selected local file(s) and metadata?`
+    );
+    if (!approved) {
+      return;
+    }
+
+    setBulkDeleting(true);
+    setSearchError(null);
+    try {
+      const results = await Promise.allSettled(
+        deletableSelectedDocIds.map(async (docId) => {
+          const response = await fetch(`/api/documents/${docId}`, { method: "DELETE" });
+          const payload = (await response.json()) as { error?: string };
+          if (!response.ok) {
+            throw new Error(payload.error ?? `Delete failed for ${docId}`);
+          }
+          return docId;
+        })
+      );
+
+      const failed = results.filter((result) => result.status === "rejected");
+      if (failed.length > 0) {
+        const successCount = results.length - failed.length;
+        setSearchError(`Deleted ${successCount} document(s). ${failed.length} delete(s) failed.`);
+      } else if (skippedCount > 0) {
+        setSearchError(`Deleted ${results.length} document(s). ${skippedCount} cannot be deleted from this view.`);
+      }
+
+      setSelectedDocIds([]);
+      setRefreshToken((prev) => prev + 1);
+    } catch (error) {
+      setSearchError(error instanceof Error ? error.message : "Bulk delete failed");
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
 
   const onAsk = async () => {
     const question = query.trim();
@@ -194,6 +302,16 @@ export default function HomePage() {
     } finally {
       setAskLoading(false);
     }
+  };
+
+  const triggerSearch = () => {
+    setPage(1);
+    setSearchTick((prev) => prev + 1);
+  };
+
+  const clearQuery = () => {
+    setQuery("");
+    setPage(1);
   };
 
   const appliedFilters = useMemo(() => {
@@ -254,7 +372,13 @@ export default function HomePage() {
     return chips;
   }, [filters]);
 
-  const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(data.total / Math.max(1, data.pageSize)));
+  const gridClassName =
+    view === "grid"
+      ? libraryMode
+        ? "grid-cols-2 xl:grid-cols-4"
+        : "grid-cols-1 md:grid-cols-2 xl:grid-cols-2"
+      : "grid-cols-1";
 
   return (
     <div className="relative min-h-screen overflow-hidden pb-20">
@@ -276,6 +400,7 @@ export default function HomePage() {
             <ThemeToggle />
             <UploadModal
               suggestedTags={data.available.tags}
+              onUploaded={() => setRefreshToken((prev) => prev + 1)}
               trigger={
                 <Button variant="accent" size="lg" className="hidden md:inline-flex">
                   <UploadCloud className="h-4 w-4" />
@@ -335,10 +460,27 @@ export default function HomePage() {
                   setPage(1);
                   setQuery(event.target.value);
                 }}
-                placeholder="Search by clause, control, policy, incident, vendor..."
+                placeholder="Search by clause, control, policy... (leave empty to list all files)"
                 className="h-12 border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0 md:text-lg"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    triggerSearch();
+                  }
+                }}
               />
-              <Button variant="accent" className="h-11 rounded-2xl px-5" onClick={() => setPage(1)}>
+              {query ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 rounded-xl"
+                  onClick={clearQuery}
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              ) : null}
+              <Button variant="accent" className="h-11 rounded-2xl px-5" onClick={triggerSearch}>
                 Search
               </Button>
             </div>
@@ -357,6 +499,17 @@ export default function HomePage() {
                   }
                 }}
               />
+              {query ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 rounded-xl"
+                  onClick={clearQuery}
+                  aria-label="Clear question"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              ) : null}
               <Button variant="accent" className="h-11 rounded-2xl px-5" onClick={() => void onAsk()}>
                 Send
               </Button>
@@ -387,7 +540,7 @@ export default function HomePage() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
                     <SlidersHorizontal className="h-4 w-4 text-slate-500 dark:text-slate-300" />
-                    {data.total} results
+                    {data.total} {libraryMode ? "documents" : "results"}
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -403,6 +556,7 @@ export default function HomePage() {
                     <Button
                       variant={view === "grid" ? "default" : "ghost"}
                       size="sm"
+                      disabled={bulkDeleting}
                       onClick={() => setView("grid")}
                     >
                       <Grid3X3 className="h-4 w-4" />
@@ -410,12 +564,48 @@ export default function HomePage() {
                     <Button
                       variant={view === "list" ? "default" : "ghost"}
                       size="sm"
+                      disabled={bulkDeleting}
                       onClick={() => setView("list")}
                     >
                       <List className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
+
+                {libraryMode && data.hits.length > 0 ? (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200/90 bg-white/70 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900/70">
+                    <span className="text-slate-700 dark:text-slate-200">
+                      {selectedDocIds.length} selected
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={loading || bulkDeleting || selectedDocIds.length === visibleDocIds.length}
+                        onClick={() => setSelectedDocIds(visibleDocIds)}
+                      >
+                        Select all
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={loading || bulkDeleting || selectedDocIds.length === 0}
+                        onClick={() => setSelectedDocIds([])}
+                      >
+                        Clear
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/10"
+                        disabled={loading || bulkDeleting || deletableSelectedDocIds.length === 0}
+                        onClick={() => void onDeleteSelected()}
+                      >
+                        {bulkDeleting ? "Deleting..." : "Delete selected"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
 
                 {appliedFilters.length > 0 && (
                   <div className="flex flex-wrap gap-2">
@@ -436,13 +626,8 @@ export default function HomePage() {
               </div>
 
               {loading ? (
-                <div
-                  className={cn(
-                    "grid gap-4",
-                    view === "grid" ? "grid-cols-1 xl:grid-cols-2" : "grid-cols-1"
-                  )}
-                >
-                  {Array.from({ length: 6 }).map((_, index) => (
+                <div className={cn("grid gap-4", gridClassName)}>
+                  {Array.from({ length: libraryMode ? PAGE_SIZE_LIBRARY : PAGE_SIZE_SEARCH }).map((_, index) => (
                     <ResultSkeleton key={index} />
                   ))}
                 </div>
@@ -469,13 +654,25 @@ export default function HomePage() {
               ) : (
                 <>
                   <div
-                    className={cn(
-                      "grid gap-4",
-                      view === "grid" ? "grid-cols-1 xl:grid-cols-2" : "grid-cols-1"
-                    )}
+                    className={cn("grid gap-4", gridClassName)}
                   >
                     {data.hits.map((hit) => (
-                      <ResultCard key={hit.chunk_id} hit={hit} view={view} />
+                      <ResultCard
+                        key={libraryMode ? hit.doc_id : hit.chunk_id}
+                        hit={hit}
+                        view={view}
+                        onDelete={onDeleteFromList}
+                        deleting={bulkDeleting || deletingDocId === hit.doc_id}
+                        libraryMode={libraryMode}
+                        selectable={libraryMode}
+                        selected={selectedDocIds.includes(hit.doc_id)}
+                        onToggleSelect={onToggleSelect}
+                        detailHref={
+                          libraryMode
+                            ? `/document/${hit.doc_id}?from=library`
+                            : `/document/${hit.doc_id}?from=search&page=${hit.page_start}`
+                        }
+                      />
                     ))}
                   </div>
 

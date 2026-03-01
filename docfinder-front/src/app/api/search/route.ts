@@ -5,7 +5,9 @@ import {
   mapBackendHits,
   searchBackendRaw,
 } from "@/server/backend-contract";
-import { cacheHits } from "@/store/search-cache";
+import { countDocumentPages } from "@/server/page-counter";
+import { listUploadRegistryEntries } from "@/server/upload-registry";
+import { cacheHits, getCachedDocumentById } from "@/store/search-cache";
 import type { DocumentHit, SearchApiResponse, SortMode } from "@/types/docfinder";
 
 type SearchBody = {
@@ -23,15 +25,49 @@ type SearchBody = {
   };
 };
 
+const SEARCH_MIN_SCORE = Number(process.env.SEARCH_MIN_SCORE ?? "0.25");
+
+function normalizeValue(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function normalizeList(values: string[] | undefined) {
+  return (values ?? []).map(normalizeValue);
+}
+
+function compareDateAsc(a: string, b: string) {
+  const safeA = a || "0000-00-00";
+  const safeB = b || "0000-00-00";
+  return safeA.localeCompare(safeB);
+}
+
+function compareDateDesc(a: string, b: string) {
+  const safeA = a || "0000-00-00";
+  const safeB = b || "0000-00-00";
+  return safeB.localeCompare(safeA);
+}
+
 function applyFilters(hits: DocumentHit[], filters: SearchBody["filters"]) {
+  const docTypes = normalizeList(filters?.doc_type);
+  const langs = normalizeList(filters?.lang);
+  const tags = normalizeList(filters?.tags);
+
   return hits.filter((hit) => {
-    if (filters?.doc_type?.length && !filters.doc_type.includes(hit.doc_type)) {
+    const hitDocType = normalizeValue(hit.doc_type);
+    const hitLang = normalizeValue(hit.lang);
+    const hitTags = hit.tags.map(normalizeValue);
+
+    if (docTypes.length && !docTypes.includes(hitDocType)) {
       return false;
     }
-    if (filters?.lang?.length && !filters.lang.includes(hit.lang)) {
+    if (langs.length && !langs.includes(hitLang)) {
       return false;
     }
-    if (filters?.tags?.length && !filters.tags.every((tag) => hit.tags.includes(tag))) {
+    if (tags.length && !tags.some((tag) => hitTags.includes(tag))) {
+      return false;
+    }
+
+    if ((filters?.from || filters?.to) && !hit.date) {
       return false;
     }
     if (filters?.from && hit.date < filters.from) {
@@ -53,18 +89,83 @@ function buildAvailable(hits: DocumentHit[]) {
   };
 }
 
+function collapseToDocuments(hits: DocumentHit[]) {
+  const byDoc = new Map<string, DocumentHit>();
+
+  for (const hit of hits) {
+    const existing = byDoc.get(hit.doc_id);
+    if (!existing) {
+      byDoc.set(hit.doc_id, {
+        ...hit,
+        tags: Array.from(new Set(hit.tags)),
+      });
+      continue;
+    }
+
+    const mergedTags = Array.from(new Set([...existing.tags, ...hit.tags]));
+    const keepNew =
+      hit.score > existing.score ||
+      (hit.score === existing.score && hit.date > existing.date);
+    const best = keepNew ? hit : existing;
+
+    byDoc.set(hit.doc_id, {
+      ...best,
+      tags: mergedTags,
+    });
+  }
+
+  return Array.from(byDoc.values());
+}
+
 function sortHits(hits: DocumentHit[], sort: SortMode | undefined) {
   switch (sort) {
     case "relevance_asc":
-      return [...hits].sort((a, b) => a.score - b.score || b.date.localeCompare(a.date));
+      return [...hits].sort((a, b) => a.score - b.score || compareDateDesc(a.date, b.date));
     case "date_desc":
-      return [...hits].sort((a, b) => b.date.localeCompare(a.date) || b.score - a.score);
+      return [...hits].sort((a, b) => compareDateDesc(a.date, b.date) || b.score - a.score);
     case "date_asc":
-      return [...hits].sort((a, b) => a.date.localeCompare(b.date) || b.score - a.score);
+      return [...hits].sort((a, b) => compareDateAsc(a.date, b.date) || b.score - a.score);
     case "relevance_desc":
     default:
-      return [...hits].sort((a, b) => b.score - a.score || b.date.localeCompare(a.date));
+      return [...hits].sort((a, b) => b.score - a.score || compareDateDesc(a.date, b.date));
   }
+}
+
+function prettifyTitle(rawName: string, docId: string) {
+  const noPrefix = rawName.replace(/^UPL-[A-Z0-9]{8,}-/i, "");
+  const base = noPrefix || docId;
+  const clean = base.replace(/\.[a-z0-9]+$/i, "").replace(/[_-]+/g, " ").trim();
+  return clean || docId;
+}
+
+async function buildLibraryHits(): Promise<DocumentHit[]> {
+  const entries = listUploadRegistryEntries();
+  return Promise.all(
+    entries.map(async (entry) => {
+    const cached = getCachedDocumentById(entry.doc_id);
+    const cachedMaxPage = cached?.chunks.reduce((max, chunk) => Math.max(max, chunk.page_end), 0) ?? 0;
+    const filePageCount = entry.page_count ?? (await countDocumentPages(entry.saved_path)) ?? 0;
+    const totalPages = Math.max(cachedMaxPage, filePageCount, 1);
+    const ext = entry.original_name.split(".").pop()?.toLowerCase() || "document";
+
+    return {
+      doc_id: entry.doc_id,
+      chunk_id: `${entry.doc_id}-library`,
+      title: cached?.title ?? prettifyTitle(entry.original_name, entry.doc_id),
+      doc_type: cached?.doc_type ?? ext,
+      category: cached?.category ?? "uploaded",
+      tags: Array.from(new Set([...(cached?.tags ?? []), ...(entry.tags ?? [])])),
+      page_start: 1,
+      page_end: totalPages,
+      lang: cached?.lang ?? "unknown",
+      date: cached?.date ?? "",
+      score: 0,
+      snippet_html: "",
+      source_name: entry.original_name,
+      source_path: entry.saved_path,
+    };
+    })
+  );
 }
 
 export async function POST(req: Request) {
@@ -74,13 +175,19 @@ export async function POST(req: Request) {
   const queryText = body.q?.trim() ?? "";
 
   if (!queryText) {
+    const libraryHits = await buildLibraryHits();
+    const sorted = sortHits(applyFilters(libraryHits, body.filters), body.filters?.sort);
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const paged = sorted.slice(start, end);
+
     return NextResponse.json({
-      hits: [],
-      total: 0,
+      hits: paged,
+      total: sorted.length,
       page,
       pageSize,
-      hasMore: false,
-      available: { docTypes: [], categories: [], tags: [], langs: [] },
+      hasMore: end < sorted.length,
+      available: buildAvailable(libraryHits),
     } satisfies SearchApiResponse);
   }
 
@@ -95,12 +202,20 @@ export async function POST(req: Request) {
   try {
     const backendPayload = await searchBackendRaw(baseUrl, queryText);
     const mapped = mapBackendHits(backendPayload, queryText);
-    const sorted = sortHits(applyFilters(mapped, body.filters), body.filters?.sort);
+    const scoreFiltered = mapped.filter(
+      (hit) => Number.isFinite(hit.score) && hit.score >= SEARCH_MIN_SCORE
+    );
+    const documentHitsAll = collapseToDocuments(mapped);
+    const documentHitsThreshold = collapseToDocuments(scoreFiltered);
+    const baseDocumentHits =
+      documentHitsThreshold.length > 0 ? documentHitsThreshold : documentHitsAll;
+    const sorted = sortHits(applyFilters(baseDocumentHits, body.filters), body.filters?.sort);
 
     const start = (page - 1) * pageSize;
     const end = start + pageSize;
     const paged = sorted.slice(start, end);
-    cacheHits(paged);
+    // Keep all chunks in cache so document detail can still display evidence.
+    cacheHits(mapped);
 
     return NextResponse.json({
       hits: paged,

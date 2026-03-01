@@ -69,6 +69,7 @@ export type DocumentDetail = {
   lang: string;
   date: string;
   score: number;
+  total_pages?: number;
   source_name?: string;
   source_path?: string;
   viewer_type?: "pdf" | "text" | "csv" | "spreadsheet" | "binary";

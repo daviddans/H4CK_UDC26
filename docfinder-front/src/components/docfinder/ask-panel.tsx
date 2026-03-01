@@ -44,9 +44,9 @@ export function AskPanel({ loading, response }: AskPanelProps) {
                 Sources used in the answer
               </div>
               <div className="grid gap-3 md:grid-cols-2">
-                {response.citations.map((citation) => (
+                {response.citations.map((citation, index) => (
                   <div
-                    key={`${citation.doc_id}-${citation.page}`}
+                    key={`${citation.doc_id}-${citation.page}-${index}`}
                     className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
                   >
                     <div className="mb-2 flex items-center justify-between gap-2">
@@ -62,7 +62,7 @@ export function AskPanel({ loading, response }: AskPanelProps) {
                     />
                     <div className="mt-3">
                       <Link
-                        href={`/document/${citation.doc_id}`}
+                        href={`/document/${citation.doc_id}?from=search&page=${citation.page}`}
                         className="text-sm font-semibold text-cyan-700 hover:text-cyan-600 dark:text-cyan-300 dark:hover:text-cyan-200"
                       >
                         Open source

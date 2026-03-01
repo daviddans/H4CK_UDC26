@@ -64,6 +64,17 @@ function asStringList(value: string[] | string | undefined): string[] {
   return [];
 }
 
+function normalizeTags(tags: string[]) {
+  return Array.from(
+    new Set(
+      tags
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+        .filter((tag) => tag.toLowerCase() !== "indexed")
+    )
+  );
+}
+
 function toNumber(value: number | string | undefined, fallback: number): number {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
@@ -96,6 +107,15 @@ function formatTitle(source: string) {
     return "Indexed Document";
   }
   return base.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function stripUploadPrefix(filename: string) {
+  return filename.replace(/^UPL-[A-Z0-9]{8,}-/i, "");
+}
+
+function normalizeSourceName(value: string) {
+  const normalized = path.basename(value.trim().replaceAll("\\", "/"));
+  return normalized || value.trim();
 }
 
 function makeDocId(source: string) {
@@ -194,31 +214,43 @@ export function getBackendErrorDetails(error: unknown): string[] {
 
 export function mapBackendHits(payload: BackendSearchResponse, queryText: string): DocumentHit[] {
   const rawHits = payload.hits?.hits ?? [];
-  const now = new Date().toISOString().slice(0, 10);
 
   return rawHits.map((hit, index) => {
     const metadata = hit._source?.metadata ?? {};
     const chunkData = hit._source?.chunk_data ?? {};
-    const sourceName = metadata.source_name ?? metadata.source ?? chunkData.source ?? `document-${index + 1}.txt`;
-    const uploadMeta = getUploadRegistryEntryBySource(sourceName);
+    const rawSourceNameValue =
+      metadata.source_name ?? metadata.source ?? chunkData.source ?? `document-${index + 1}.txt`;
+    const rawSourceName = String(rawSourceNameValue);
+    const normalizedSourceName = normalizeSourceName(rawSourceName);
+    const uploadMeta =
+      getUploadRegistryEntryBySource(rawSourceName) ??
+      getUploadRegistryEntryBySource(normalizedSourceName) ??
+      getUploadRegistryEntryBySource(stripUploadPrefix(normalizedSourceName));
+    const sourceName = uploadMeta?.original_name ?? stripUploadPrefix(normalizedSourceName);
     const chunkRaw = metadata.chunk_id ?? chunkData.chunk_id ?? index;
     const chunkId = toNumber(chunkRaw, index);
     const content = hit._source?.content ?? "";
-    const docId = metadata.doc_id ?? uploadMeta?.doc_id ?? makeDocId(sourceName);
-    const title =
-      metadata.title ?? (uploadMeta?.original_name ? formatTitle(uploadMeta.original_name) : formatTitle(sourceName));
+    const docId =
+      metadata.doc_id ??
+      uploadMeta?.doc_id ??
+      makeDocId(normalizedSourceName || rawSourceName || sourceName);
+    const titleSource =
+      uploadMeta?.original_name ??
+      (typeof metadata.title === "string" ? stripUploadPrefix(metadata.title) : undefined) ??
+      sourceName;
+    const title = formatTitle(titleSource);
     const tags = asStringList(metadata.tags);
-    const mergedTags = tags.length ? tags : uploadMeta?.tags ?? [];
+    const mergedTags = normalizeTags([...(tags ?? []), ...(uploadMeta?.tags ?? [])]);
     const pageStart = toNumber(metadata.page_start, chunkId + 1);
     const pageEnd = toNumber(metadata.page_end, pageStart);
     const detectedType = sourceName.split(".").pop()?.toLowerCase() || "document";
-    const dateFromUpload = uploadMeta?.uploaded_at?.slice(0, 10);
     const directPathCandidates = [
       metadata.file_path,
       metadata.source_path,
       metadata.full_path,
       metadata.path,
       metadata.file,
+      rawSourceName.includes("/") || rawSourceName.includes("\\") ? rawSourceName : "",
       uploadMeta?.saved_path,
     ]
       .map((value) => (typeof value === "string" ? value.trim() : ""))
@@ -232,7 +264,7 @@ export function mapBackendHits(payload: BackendSearchResponse, queryText: string
 
     const sourcePath =
       directPathCandidates[0] ||
-      (dirCandidate ? path.join(dirCandidate, sourceName) : undefined);
+      (dirCandidate ? path.join(dirCandidate, normalizedSourceName) : undefined);
 
     return {
       doc_id: docId,
@@ -240,11 +272,11 @@ export function mapBackendHits(payload: BackendSearchResponse, queryText: string
       title,
       doc_type: metadata.doc_type ?? uploadMeta?.doc_type ?? detectedType,
       category: metadata.category ?? uploadMeta?.category ?? "backend",
-      tags: mergedTags.length ? mergedTags : ["indexed"],
+      tags: mergedTags,
       page_start: pageStart,
       page_end: pageEnd,
-      lang: metadata.lang ?? metadata.type ?? uploadMeta?.lang ?? "unknown",
-      date: metadata.date ?? metadata.creation_date ?? dateFromUpload ?? now,
+      lang: metadata.lang ?? metadata.type ?? "unknown",
+      date: metadata.date ?? metadata.creation_date ?? "",
       score: Number(hit._score ?? 0),
       snippet_html: makeSnippet(content, queryText),
       source_name: sourceName,
