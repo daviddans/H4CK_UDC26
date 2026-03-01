@@ -183,7 +183,7 @@ async function buildLibraryHits(): Promise<DocumentHit[]> {
 }
 
 export async function POST(req: Request) {
-  const body = (await req.json()) as SearchBody;
+  const body = (await req.json().catch(() => ({}))) as SearchBody;
   const page = Math.max(1, body.page ?? 1);
   const pageSize = Math.max(1, Math.min(body.pageSize ?? 8, 24));
   const queryText = body.q?.trim() ?? "";
