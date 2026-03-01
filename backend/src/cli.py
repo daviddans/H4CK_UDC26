@@ -1,8 +1,13 @@
+#CLI for debug and perform simple operations without needing to run the full API. This is useful for testing and quick interactions with the system.
+
+
 import sys
 import os
+
+from sympy import ask
 from ollama_manager import OllamaManager
 from opensearch_manager import OpenSearchManager
-from readpdf import limpiar  # Importamos la función que extrae texto y metadatos
+from parser import limpiar  # Importamos la función que extrae texto y metadatos
 
 INDEX_NAME = "mi-archivo-inteligente"
 
@@ -31,6 +36,7 @@ def main():
 
     if comando == "init":
         manager.init_index(INDEX_NAME)
+        print(f"Índice '{INDEX_NAME}' inicializado.")
 
     elif comando == "index":
         if len(sys.argv) < 3:
@@ -52,7 +58,7 @@ def main():
 
             # Pasamos los datos individualmente al manager
             # IMPORTANTE: Asegúrate de que index_pdf en opensearch_manager.py acepte estos argumentos
-            manager.index_pdf(
+            manager.index_document(
                 index_name=INDEX_NAME,
                 file_path=file_path,
                 texto=data_extraida.get(
@@ -95,9 +101,8 @@ def main():
         query = (
             " ".join(sys.argv[2:])
             if len(sys.argv) > 2
-            else input("¿Qué quieres preguntar a la IA? ")
+            else ask = input("¿Qué quieres preguntar a la IA? ")
         )
-
         if not query:
             return
 
@@ -108,8 +113,8 @@ def main():
             return
 
         # Recuperamos solo el contenido de texto para el contexto de la IA
-        context_chunks = [hit["_source"]["content"] for hit in res["hits"]["hits"]]
-        respuesta = ollama_manager.generate_answer(query, context_chunks)
+        context_chunks = [hit["_source"] for hit in res["hits"]["hits"]]
+        respuesta = ollama_manager.generate_answer(ask, context_chunks)
 
         print(f"\n--- Respuesta de la IA ---\n{respuesta}\n" + "-" * 50)
 

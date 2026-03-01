@@ -1,7 +1,6 @@
 import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-
 from opensearch_manager import OpenSearchManager
 from ollama_manager import OllamaManager
 from parser import limpiar
