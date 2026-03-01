@@ -12,7 +12,7 @@ TOTAL_QUERRY_SIZE = 1000
 
 class OpenSearchManager:
     def __init__(
-        self, host="localhost", port=9200, auth=("admin", "ComplexPassword123!")
+        self, host="opensearch-nodo", port=9200, auth=("admin", "ComplexPassword123!")
     ):
         try:
             self.client = OpenSearch(

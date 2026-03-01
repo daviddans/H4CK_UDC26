@@ -17,17 +17,16 @@
         "source_name": "docfinder-smoke.txt"
       }
     ],
-    "UPL-0ED4EA31": [
+    "BACK-propuesta-smart-port-2024": [
       {
-        "doc_id": "UPL-0ED4EA31",
-        "chunk_id": "UPL-0ED4EA31-0",
-        "title": "Email Seguimiento Aurora",
-        "doc_type": "txt",
+        "doc_id": "BACK-propuesta-smart-port-2024",
+        "chunk_id": "BACK-propuesta-smart-port-2024-3",
+        "title": "Propuesta Smart Port 2024",
+        "doc_type": "pdf",
         "category": "backend",
         "tags": [],
         "page_start": 1,
         "page_end": 1,
-        "total_pages": 1,
         "lang": "es",
         "date": "2026-03-01",
         "score": 1,
