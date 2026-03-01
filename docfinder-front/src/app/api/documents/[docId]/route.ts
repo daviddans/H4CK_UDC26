@@ -193,8 +193,18 @@ export async function GET(
     (max, chunk) => Math.max(max, chunk.page_end),
     0
   );
+  const chunkDeclaredTotalPages = document.chunks.reduce(
+    (max, chunk) => Math.max(max, chunk.total_pages ?? 0),
+    0
+  );
   const filePageCount = sourcePath ? await countDocumentPages(sourcePath) : undefined;
-  const totalPages = Math.max(entry?.page_count ?? 0, filePageCount ?? 0, chunksMaxPage, 1);
+  const totalPages = Math.max(
+    entry?.page_count ?? 0,
+    filePageCount ?? 0,
+    chunkDeclaredTotalPages,
+    chunksMaxPage,
+    1
+  );
   const enriched = sourcePath
     ? {
         ...document,
@@ -222,7 +232,7 @@ export async function DELETE(
     removeCachedDocumentById(params.docId);
     return NextResponse.json(
       {
-        error: "Document is not managed by upload registry.",
+        error: "Document cannot be deleted.",
       },
       { status: 404 }
     );
@@ -253,7 +263,7 @@ export async function DELETE(
         file_deleted: fileDeleted,
         file_error: fileError,
         index_deleted: false,
-        note: "File metadata was removed, but local file deletion failed.",
+        note: "Document metadata was removed, but file deletion failed.",
       },
       { status: 500 }
     );
@@ -264,7 +274,7 @@ export async function DELETE(
     doc_id: params.docId,
     file_deleted: fileDeleted,
     index_deleted: false,
-    note: "Local file removed. Backend index delete endpoint is not available.",
+    note: "Document deleted.",
   });
 }
 

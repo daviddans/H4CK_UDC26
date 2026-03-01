@@ -17,6 +17,7 @@ export type DocumentHit = {
   tags: string[];
   page_start: number;
   page_end: number;
+  total_pages?: number;
   lang: string;
   date: string;
   score: number;
@@ -53,6 +54,8 @@ export type AskCitation = {
   title: string;
   page: number;
   snippet_html: string;
+  doc_type?: string;
+  source_name?: string;
 };
 
 export type AskResponse = {

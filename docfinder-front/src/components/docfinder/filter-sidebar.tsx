@@ -21,7 +21,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Languages,
   RotateCcw,
   SlidersHorizontal,
   X,
@@ -99,30 +98,31 @@ function MiniSelect({
   onPick: (value: string) => void;
   disabled?: boolean;
 }) {
+  const [resetKey, setResetKey] = useState(0);
+
   return (
-    <select
-      defaultValue=""
+    <Select
+      key={resetKey}
       disabled={disabled}
-      onChange={(event) => {
-        const value = event.target.value;
-        if (value) {
-          onPick(value);
+      onValueChange={(value) => {
+        if (!value) {
+          return;
         }
-        event.currentTarget.value = "";
+        onPick(value);
+        setResetKey((prev) => prev + 1);
       }}
-      className={cn(
-        "h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs text-slate-700 shadow-sm outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-cyan-500 dark:focus:ring-cyan-500/40"
-      )}
     >
-      <option value="" disabled>
-        {placeholder}
-      </option>
-      {options.map((option) => (
-        <option key={option} value={option}>
-          {option}
-        </option>
-      ))}
-    </select>
+      <SelectTrigger className="h-9 rounded-2xl border-slate-200/90 bg-white/95 px-2.5 text-xs font-medium text-slate-700 shadow-sm hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600">
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent className="rounded-2xl border-slate-200/90 bg-white/95 dark:border-slate-700 dark:bg-slate-900">
+        {options.map((option) => (
+          <SelectItem key={option} value={option} className="text-xs capitalize">
+            {option}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -446,54 +446,18 @@ export function FilterSidebar({
               value={filters.sort}
               onValueChange={(value: SortMode) => onUpdate({ ...filters, sort: value })}
             >
-              <SelectTrigger className="h-9 rounded-xl text-xs">
+              <SelectTrigger className="h-9 rounded-2xl border-slate-200/90 bg-white/95 px-2.5 text-xs font-medium text-slate-700 shadow-sm hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600">
                 <SelectValue placeholder="Sort" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="relevance_desc">Relevance: High to low</SelectItem>
-                <SelectItem value="relevance_asc">Relevance: Low to high</SelectItem>
-                <SelectItem value="date_desc">Date: Newest first</SelectItem>
-                <SelectItem value="date_asc">Date: Oldest first</SelectItem>
+              <SelectContent className="rounded-2xl border-slate-200/90 bg-white/95 dark:border-slate-700 dark:bg-slate-900">
+                <SelectItem value="relevance_desc" className="text-xs">Relevance: High to low</SelectItem>
+                <SelectItem value="relevance_asc" className="text-xs">Relevance: Low to high</SelectItem>
+                <SelectItem value="date_desc" className="text-xs">Date: Newest first</SelectItem>
+                <SelectItem value="date_asc" className="text-xs">Date: Oldest first</SelectItem>
               </SelectContent>
             </Select>
           </FieldBlock>
         </div>
-
-        {(filters.doc_type.length > 0 || filters.lang.length > 0) && (
-          <div className="flex flex-wrap gap-1.5">
-            {filters.doc_type.map((item) => (
-              <button
-                key={`type-${item}`}
-                type="button"
-                onClick={() =>
-                  onUpdate({
-                    ...filters,
-                    doc_type: filters.doc_type.filter((value) => value !== item),
-                  })
-                }
-                className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
-              >
-                {item} x
-              </button>
-            ))}
-            {filters.lang.map((item) => (
-              <button
-                key={`lang-${item}`}
-                type="button"
-                onClick={() =>
-                  onUpdate({
-                    ...filters,
-                    lang: filters.lang.filter((value) => value !== item),
-                  })
-                }
-                className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
-              >
-                <Languages className="mr-1 inline-flex h-3 w-3" />
-                {item} x
-              </button>
-            ))}
-          </div>
-        )}
 
         {advancedOpen && (
           <div className="rounded-xl border border-slate-200/90 bg-slate-50/75 p-2.5 dark:border-slate-700 dark:bg-slate-950/40">

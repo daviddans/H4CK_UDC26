@@ -15,7 +15,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DocFinder",
+  title: "GandalFS",
   description: "Premium document search platform demo",
 };
 

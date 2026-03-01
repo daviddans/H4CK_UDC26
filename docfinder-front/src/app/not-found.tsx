@@ -8,7 +8,7 @@ export default function NotFound() {
       <p className="text-xs uppercase tracking-[0.3em] text-cyan-700">404</p>
       <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Page not found</h1>
       <p className="mt-3 max-w-md text-slate-500 dark:text-slate-400">
-        The requested page does not exist in this DocFinder demo workspace.
+        The requested page does not exist in this GandalFS demo workspace.
       </p>
       <Button asChild className="mt-6">
         <Link href="/">Go to Home</Link>
