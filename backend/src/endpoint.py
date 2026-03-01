@@ -65,6 +65,8 @@ def ask_ai(payload: QueryRequest):
     """Busca contexto y genera una respuesta con la IA."""
     # 1. Buscar los 4 fragmentos más relevantes
     search_result = search_manager.hybrid_search_rrf(INDEX_NAME, payload.query, top_k=5)
+    if isinstance(search_result, Exception):
+        raise HTTPException(status_code=500, detail=f"Search failed: {search_result}")
 
     hits = search_result.get("hits", {}).get("hits", [])
     if not hits:
@@ -74,7 +76,10 @@ def ask_ai(payload: QueryRequest):
     context_data = [hit["_source"] for hit in hits]
 
     # 3. Generar respuesta con Ollama
-    answer = ai_manager.generate_answer(payload.query, context_data)
+    try:
+        answer = ai_manager.generate_answer(payload.query, context_data)
+    except Exception as error:
+        raise HTTPException(status_code=502, detail=f"LLM generation failed: {error}") from error
 
     # 4. Preparar fuentes simplificadas
     sources = []

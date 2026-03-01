@@ -48,12 +48,6 @@ export type BackendSearchResponse = {
   };
 };
 
-type SearchPayloadVariants = {
-  querry?: string;
-  query?: string;
-  q?: string;
-};
-
 function asStringList(value: string[] | string | undefined): string[] {
   if (Array.isArray(value)) {
     return value.filter(Boolean).map((item) => String(item).trim()).filter(Boolean);
@@ -358,36 +352,26 @@ function makeSnippet(content: string, queryText: string) {
 }
 
 export async function searchBackendRaw(baseUrl: string, queryText: string): Promise<BackendSearchResponse> {
-  const backendAttempts: SearchPayloadVariants[] = [
-    { query: queryText },
-    { q: queryText },
-    { querry: queryText },
-  ];
-  const backendPaths = ["/search", "/search%20"];
   const errors: string[] = [];
 
-  for (const path of backendPaths) {
-    for (const payload of backendAttempts) {
-      try {
-        const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+  try {
+    const payload = { query: queryText };
+    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-        if (!response.ok) {
-          const text = await response.text();
-          errors.push(`${path} payload=${JSON.stringify(payload)} -> ${response.status}: ${text.slice(0, 240)}`);
-          continue;
-        }
-
-        return (await response.json()) as BackendSearchResponse;
-      } catch (error) {
-        errors.push(
-          `${path} payload=${JSON.stringify(payload)} -> ${error instanceof Error ? error.message : "Network error"}`
-        );
-      }
+    if (!response.ok) {
+      const text = await response.text();
+      errors.push(`/search payload=${JSON.stringify(payload)} -> ${response.status}: ${text.slice(0, 240)}`);
+    } else {
+      return (await response.json()) as BackendSearchResponse;
     }
+  } catch (error) {
+    errors.push(
+      `/search payload=${JSON.stringify({ query: queryText })} -> ${error instanceof Error ? error.message : "Network error"}`
+    );
   }
 
   const err = new Error("Backend search failed.");

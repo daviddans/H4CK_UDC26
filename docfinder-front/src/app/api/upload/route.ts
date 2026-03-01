@@ -119,29 +119,6 @@ export async function POST(req: Request) {
       },
       label: "POST /index-file {path}",
     },
-    {
-      url: `${baseUrl.replace(/\/$/, "")}/add-index`,
-      init: {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: fullPath }),
-      },
-      label: "POST /add-index {path}",
-    },
-    {
-      url: `${baseUrl.replace(/\/$/, "")}/add-index`,
-      init: {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ file: { path: fullPath } }),
-      },
-      label: "POST /add-index {file:{path}}",
-    },
-    {
-      url: `${baseUrl.replace(/\/$/, "")}/add-index?path=${encodeURIComponent(fullPath)}`,
-      init: { method: "GET" },
-      label: "GET /add-index?path=...",
-    },
   ];
 
   const errors: string[] = [];
