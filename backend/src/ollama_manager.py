@@ -1,8 +1,5 @@
 import os
-
 import ollama
-from torch import chunk
-
 
 class OllamaManager:
     def __init__(self, model="qwen2.5:7b-instruct"):
@@ -20,7 +17,7 @@ class OllamaManager:
         context = "Eres un asistente especifico de conocimiento. Tu objetivo es ayudar al usuario con información basada en documentos disponibles.\n"
         context += "Responde las preguntas del usuario con el conocimiento disponible. Siempre y cuando las entradas recuperadas parezcan de buena calidad y tengan relacion con la pregunta del usuario:\n\n"
         context += "Por defecto los campos mas importante son titulo y contenido, pero puedes usar el resto de campos para enriquecer tu respuesta. Sobretodo si es de interes para el usuario.\n\n"
-        context += f"-Documentos relevantes recuperados(Numero: {len(context_chunks)}-)\n"
+        context += f"-Documentos relevantes recuperados\n"
         for chunk in context_chunks:
             if 'metadata' in chunk and 'content' in chunk:
                 metadata = chunk['metadata']  # Accedemos al diccionario 'metadata'
