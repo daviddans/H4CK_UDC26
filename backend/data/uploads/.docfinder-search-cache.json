@@ -1,7 +1,8 @@
 {
   "byDocId": {
-    "BACK-document-en": [
+    "BACK-docfinder-smoke": [
       {
+<<<<<<< HEAD
         "doc_id": "BACK-document-en",
         "chunk_id": "BACK-document-en-0",
         "title": "Document En",
@@ -55,11 +56,18 @@
         "chunk_id": "BACK-presupuesto-2025-novatech-0",
         "title": "Presupuesto 2025 Novatech",
         "doc_type": "xlsx",
+=======
+        "doc_id": "BACK-docfinder-smoke",
+        "chunk_id": "BACK-docfinder-smoke-0",
+        "title": "Docfinder Smoke",
+        "doc_type": "txt",
+>>>>>>> 0aa6dee80f286c4fb3df6615166e03edb12eae9d
         "category": "backend",
         "tags": [],
         "page_start": 1,
         "page_end": 1,
         "lang": "es",
+<<<<<<< HEAD
         "date": "2024-12-10",
         "score": 0.72906876,
         "snippet_html": "Mes,Ingeniería,Comercial,Administración,RRHH,I+D,Total Enero,52500,32000,18500,11000,38000,152000 Febrero,51000,30500,18000,10500,37000,147000 Marzo,53000,31000,17500,10000,36500,148000 Abril,48000,27000,16000,9000,33000,133000 Mayo,47500,26500,15500,8500,3200...",
@@ -560,6 +568,12 @@
         "score": 0.47813517,
         "snippet_html": "20/10/2024 renovación anual Rating: A PROVEEDORES EN EVALUACIÓN 26. Greenfield Energy Ltd. VAT: GB-234567890 Contacto: partnerships@greenfield-energy.co.uk Categoría: Consultoría Energías renovables Último pedido: en proceso de homologación Rating: C 27. Maker...",
         "source_name": "proveedores_activos.txt"
+=======
+        "date": "2026-03-01",
+        "score": 1,
+        "snippet_html": "Acta de reunion Aurora Fecha: 2025-01-10 Tema: incidencias de soporte y plan de accion. Conclusiones: mejorar turnos y escalado.",
+        "source_name": "docfinder-smoke.txt"
+>>>>>>> 0aa6dee80f286c4fb3df6615166e03edb12eae9d
       }
     ],
     "BACK-propuesta-smart-port-2024": [
@@ -573,6 +587,7 @@
         "page_start": 1,
         "page_end": 1,
         "lang": "es",
+<<<<<<< HEAD
         "date": "2024-05-18",
         "score": 0.5875929,
         "snippet_html": "de monitorización industrial para las plantas de producción del Grupo Industrial Mares. Despliegue de más de 200 sensores para el control de variables de producción, mantenimiento predictivo y eficiencia energética. Proyecto 2: AutoNorte Fabricación Vigo 2022 ...",
@@ -917,6 +932,13 @@
         "score": 0.001,
         "snippet_html": "ORDEN DE COMPRA / PURCHASE ORDER Ref: PO-2024-0156 COMPRADOR / BUYER NovaTech Solutions S.L. CIF: B-15678901 Calle Principe 42, 3o 36202 Vigo, Spain Contacto / Contact: Raul Dominguez r.dominguez@novatech-solutions.es +34 986 123 456 PROVEEDOR / SUPPLIER ShenT...",
         "source_name": "pedido_PO-2024-0156.pdf"
+=======
+        "date": "2026-03-01",
+        "score": 1,
+        "snippet_html": "De: <mark>Pedro</mark> <mark>Suárez</mark> &lt;<mark>p.suarez@novatech-solutions.es</mark> <mark>Para</mark>: Ana <mark>Belén</mark> <mark>Rivas</mark> &lt;<mark>ab.rivas@novatech-solutions.es</mark> <mark>Fecha</mark>: 20 de enero de 2025 09:14 Asunto: Re: Seguimiento entrega componentes Proyecto Aurora Ana <mark>Belén</mark>, Sabes algo del pedido PO-2024-0156? Los ESP32 y los s...",
+        "source_name": "email_seguimiento_aurora.txt",
+        "source_path": "/home/fer/Documents/H4CK_UDC26/backend/data/uploads/email_seguimiento_aurora.txt"
+>>>>>>> 0aa6dee80f286c4fb3df6615166e03edb12eae9d
       }
     ],
     "BACK-docfinder-ask-live": [

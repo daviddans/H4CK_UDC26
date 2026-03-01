@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { NextResponse } from "next/server";
 
 import {
@@ -5,34 +7,28 @@ import {
   initBackendIndex,
   mapBackendHits,
   searchBackendRaw,
-  snippetToText,
 } from "@/server/backend-contract";
 import { cacheHits } from "@/store/search-cache";
 import type { AskResponse, DocumentHit } from "@/types/docfinder";
 
-type BackendAskResponse =
-  | {
-      answer?: string;
-      sources?: Array<{
-        file?: string;
-        chunk?: number;
-      }>;
-      citations?: Array<{
-        doc_id?: string;
-        title?: string;
-        page?: number;
-        snippet_html?: string;
-        doc_type?: string;
-        source_name?: string;
-      }>;
-    }
-  | {
-      response?: string;
-    };
+type BackendAskResponse = {
+  answer?: string;
+  sources?: Array<{
+    file?: string;
+    chunk?: number;
+  }>;
+  citations?: Array<{
+    doc_id?: string;
+    title?: string;
+    page?: number;
+    snippet_html?: string;
+    doc_type?: string;
+    source_name?: string;
+  }>;
+};
 
 type AskProbeResult = {
   response: AskResponse | null;
-  unavailable: boolean;
   errors: string[];
 };
 
