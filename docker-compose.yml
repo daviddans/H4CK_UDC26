@@ -19,10 +19,34 @@ services:
       - 9200:9200
     networks:
       - opensearch-net
+   
+  backend:
+    build: backend
+    container_name: backend-node
+    ports:
+      - "8000:8000"
+    depends_on:
+      - opensearch-node
+    networks:
+      - opensearch-net  
+      - frontend-net
+
+  frontend:
+    build: docfinder-front
+    container_name: frontend-node
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - frontend-net
+
 
 volumes:
   opensearch-data:
 
 networks:
   opensearch-net:
+    driver: bridge
+  frontend-net:
     driver: bridge

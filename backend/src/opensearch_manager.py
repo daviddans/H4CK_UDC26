@@ -1,8 +1,10 @@
+from cmath import phase
 from enum import auto
 import os
+import re
+import numpy as np
 from opensearchpy import OpenSearch, helpers
 from sentence_transformers import SentenceTransformer
-from readpdf import limpiar
 from text_utils import crear_chunks
 
 TOTAL_QUERRY_SIZE = 1000
@@ -23,13 +25,11 @@ class OpenSearchManager:
             )
             # Mantenemos el modelo Multilingual E5 Small (384 dim)
             self.model = SentenceTransformer("intfloat/multilingual-e5-small")
-            print("Modelo Multilingual E5 cargado.")
 
             # Actualizamos el pipeline para manejar 3 fuentes de puntuación
             self.create_rrf_pipeline()
         except Exception as e:
-            print(f"Error en inicialización: {e}")
-            raise
+            raise e
 
     def create_rrf_pipeline(self, pipeline_id="rrf-hybrid-pipeline"):
         """
@@ -41,12 +41,15 @@ class OpenSearchManager:
             "phase_results_processors": [
                 {
                     "normalization-processor": {
+                        # Para normalizar los datos se utiliza min_max para escalar
+                        # los numeros en un rango de [0,1]
                         "normalization": {"technique": "min_max"},
+                        # Permite combinar los distintos resultados obtenidos haciendo una ponderacion
+                        # armonica
                         "combination": {
                             "technique": "harmonic_mean",
                             "parameters": {
-                                # 15% Match, 60% Frase Literal, 25% Semántica
-                                "weights": [0.15, 0.60, 0.25]
+                                "weights": [0.2, 0.3, 0.2 ,0.3]
                             },
                         },
                     }
@@ -54,19 +57,42 @@ class OpenSearchManager:
             ],
         }
         try:
-            if self.client.search_pipeline.get(id=pipeline_id, ignore=[404]):
+            if self.client.search_pipeline.get(id=pipeline_id):
                 self.client.search_pipeline.delete(id=pipeline_id)
 
             self.client.search_pipeline.put(id=pipeline_id, body=pipeline_body)
-            print(f"Pipeline '{pipeline_id}' configurado (Prioridad: Frase Literal).")
         except Exception as e:
-            print(f"Error configurando el pipeline: {e}")
+            raise e
 
     def init_index(self, index_name):
         """Crea el índice con soporte k-NN y mapeo de texto."""
         index_body = {
             "settings": {
-                "index": {"knn": True, "number_of_shards": 1, "number_of_replicas": 0}
+                "analysis": {
+                    "analyzer": {
+                        "custom_analyzer": {
+                            "type": "custom",
+                            "tokenizer": "standard",
+                            "filter": [
+                                "lowercase", 
+                                "asciifolding",
+                                "stop",
+                                "porter_stem"],
+                        }
+                    }
+                },
+                "index": {
+                    "knn": True, 
+                    "number_of_shards": 1,
+                    "number_of_replicas": 0,
+                    "similarity": {
+                        "default": {
+                            "type": "BM25",
+                            "b": 0.3, # Reduce la penalización por longitud de documento
+                            "k1": 1.2 # Controla la saturación de términos
+                        }
+                    }
+                }
             },
             "mappings": {
                 "properties": {
@@ -76,14 +102,15 @@ class OpenSearchManager:
                         "dimension": 384,
                         "method": {
                             "name": "hnsw",
+                            # Se compara la diferencia en entre los grados de los vectores
                             "space_type": "cosinesimil",
                             "engine": "faiss",
                         },
                     },
                     "chunk_data": {
                         "properties": {
-                            "source": {"type": "keyword"},
-                            "chunk_id": {"type": "integer"},
+                            "source": {"type": "keyword", "index": False},
+                            "chunk_id": {"type": "integer", "index": False},
                         }
                     },
                     "metadata": {
@@ -96,7 +123,7 @@ class OpenSearchManager:
                                 "index": False,
                             },
                             "type": {"type": "keyword", "index": False},
-                            "tags": {"type": "keyword"},
+                            "tags": {"type": "keyword", "index": False},
                         }
                     },
                 }
@@ -105,10 +132,8 @@ class OpenSearchManager:
         if self.client.indices.exists(index=index_name):
             self.client.indices.delete(index=index_name)
         self.client.indices.create(index=index_name, body=index_body)
-        print(f"Índice '{index_name}' reiniciado correctamente.")
 
-    # Modifica esta función dentro de opensearch_manager.py
-    def index_pdf(
+    def index_document(
         self, index_name, file_path, texto, autor, creation_date, lang, tags=None
     ):
         """Indexación usando el texto y metadatos ya extraídos."""
@@ -118,6 +143,7 @@ class OpenSearchManager:
         # Ahora texto es un string, crear_chunks funcionará correctamente
         chunks = crear_chunks(texto)
 
+        # Permite juntar todos los chunks
         def acciones_bulk():
             for i, chunk in enumerate(chunks):
                 texto_para_embedding = f"passage: {chunk}"
@@ -142,13 +168,18 @@ class OpenSearchManager:
                 }
 
         helpers.bulk(self.client, acciones_bulk())
-        print(f"Documento '{os.path.basename(file_path)}' indexado.")
 
-    def hybrid_search_rrf(self, index_name, query_text, top_k=10):
+    def hybrid_search_rrf(self, index_name, query_text, top_k=5):
         """Búsqueda de 3 vías para maximizar la precisión literal y semántica."""
         try:
             # Prefijo 'query: ' para búsqueda semántica
+            res = self.client.count(index=index_name)
+            doc_count = res['count']
+            top_k = top_k + int(max(doc_count, 10000) / 100)
             vector_busqueda = self.model.encode(f"query: {query_text}").tolist()
+            length = len(query_text)
+            char_target = 200
+            sigmoid = 1 / ( 1 + np.pow(np.e,-(length - char_target)) )
 
             query_body = {
                 "size": TOTAL_QUERRY_SIZE,
@@ -157,13 +188,37 @@ class OpenSearchManager:
                     "hybrid": {
                         "queries": [
                             # 1. Coincidencia de palabras sueltas
-                            {"match": {"content": {"query": query_text}}},
+                            {"match": {
+                                "content": {
+                                    "query": query_text,
+                                    "boost": 1 - sigmoid
+                                    }
+                                }
+                            },
                             # 2. Coincidencia de FRASE EXACTA (Literalidad)
-                            {"match_phrase": {"content": {"query": query_text}}},
-                            # 3. Coincidencia Semántica (Vectores)
+                            {"match_phrase": {
+                                "content": {
+                                    "query": query_text,
+                                    "boost": 1 + sigmoid,
+                                    }
+                                }
+                            },
+                            # 3. Coincidencia de Titulo
+                            {"match_phrase": {
+                                "metadata.title": {
+                                    "query": query_text,
+                                    "boost": 1,
+                                    }
+                                }
+                            },
+                            # 4. Coincidencia Semántica (Vectores)
                             {
                                 "knn": {
-                                    "embedding": {"vector": vector_busqueda, "k": top_k}
+                                    "embedding": {
+                                        "vector": vector_busqueda, 
+                                        "k": top_k,
+                                        "boost": 1 + sigmoid,
+                                    }    
                                 }
                             },
                         ]
@@ -177,5 +232,4 @@ class OpenSearchManager:
                 params={"search_pipeline": "rrf-hybrid-pipeline"},
             )
         except Exception as e:
-            print(f"Error en búsqueda híbrida: {e}")
-            return None
+            return e

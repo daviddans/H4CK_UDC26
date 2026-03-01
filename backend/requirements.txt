@@ -38,6 +38,7 @@ click==8.3.1
     #   -r requirements.in
     #   pip-tools
     #   typer
+    #   uvicorn
 cuda-bindings==12.9.4
     # via
     #   -r requirements.in
@@ -74,6 +75,7 @@ h11==0.16.0
     # via
     #   -r requirements.in
     #   httpcore
+    #   uvicorn
 hf-xet==1.3.2
     # via
     #   -r requirements.in
@@ -376,6 +378,8 @@ urllib3==2.6.3
     #   -r requirements.in
     #   opensearch-py
     #   requests
+uvicorn==0.41.0
+    # via -r requirements.in
 wheel==0.46.3
     # via
     #   -r requirements.in
