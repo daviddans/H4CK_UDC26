@@ -96,16 +96,16 @@ GandalFS ofrece versatilidad total en su interacción:
 ### Interfaz Web (GUI)
 La aplicación cuenta con una **interfaz web dedicada**, diseñada para ser el centro de operaciones donde gestionar tus archivos de forma visual y reactiva.
 
-[!Imagen1](./caps/1.png)
-[!Imagen2](./caps/2.png)
-[!Imagen3](./caps/3.png)
-[!Imagen4](./caps/4.png)
-[!Imagen5](./caps/5.png)
-[!Imagen6](./caps/6.png)
-[!Imagen7](./caps/7.png)
-[!Imagen8](./caps/8.png)
-[!Imagen9](./caps/9.png)
-[!Imagen10](./caps/10.png)
+![Imagen1](./caps/1.png)
+![Imagen2](./caps/2.png)
+![Imagen3](./caps/3.png)
+![Imagen4](./caps/4.png)
+![Imagen5](./caps/5.png)
+![Imagen6](./caps/6.png)
+![Imagen7](./caps/7.png)
+![Imagen8](./caps/8.png)
+![Imagen9](./caps/9.png)
+![Imagen10](./caps/10.png)
 
 ---
 
