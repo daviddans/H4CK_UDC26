@@ -49,8 +49,7 @@ class OpenSearchManager:
                         "combination": {
                             "technique": "harmonic_mean",
                             "parameters": {
-                                # 15% Match, 60% Frase Literal, 25% Semántica
-                                "weights": [0.15, 0.60, 0.25]
+                                "weights": [0.2, 0.3, 0.2 ,0.3]
                             },
                         },
                     }
@@ -110,8 +109,8 @@ class OpenSearchManager:
                     },
                     "chunk_data": {
                         "properties": {
-                            "source": {"type": "keyword"},
-                            "chunk_id": {"type": "integer"},
+                            "source": {"type": "keyword", "index": False},
+                            "chunk_id": {"type": "integer", "index": False},
                         }
                     },
                     "metadata": {
@@ -124,7 +123,7 @@ class OpenSearchManager:
                                 "index": False,
                             },
                             "type": {"type": "keyword", "index": False},
-                            "tags": {"type": "keyword"},
+                            "tags": {"type": "keyword", "index": False},
                         }
                     },
                 }
@@ -204,7 +203,15 @@ class OpenSearchManager:
                                     }
                                 }
                             },
-                            # 3. Coincidencia Semántica (Vectores)
+                            # 3. Coincidencia de Titulo
+                            {"match_phrase": {
+                                "metadata.title": {
+                                    "query": query_text,
+                                    "boost": 1,
+                                    }
+                                }
+                            },
+                            # 4. Coincidencia Semántica (Vectores)
                             {
                                 "knn": {
                                     "embedding": {
