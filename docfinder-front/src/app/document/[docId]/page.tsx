@@ -75,6 +75,15 @@ function normalizeSummaryText(value: string, targetLines: number) {
   return compact;
 }
 
+function snippetHtmlToText(value: string) {
+  return value
+    .replace(/<mark>/g, "")
+    .replace(/<\/mark>/g, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function scoreTone(score: number) {
   if (score >= 1) {
     return "text-emerald-700 dark:text-emerald-300";
@@ -279,33 +288,58 @@ export default function DocumentDetailPage() {
         viewerType === "text" || viewerType === "csv"
           ? textPreview.replace(/\s+/g, " ").trim().slice(0, 2600)
           : "";
-      const questionParts = [
-        `Resume el documento "${document.source_name ?? document.title}" en ${targetLines} linea${targetLines > 1 ? "s" : ""} como máximo.`,
-        "No inventes datos.",
-        "Responde en español claro y profesional.",
-      ];
-      if (contextSeed) {
-        questionParts.push(`Contexto del documento: ${contextSeed}`);
+      let summaryEvidence = rankedEvidence;
+      if (summaryEvidence.length === 0) {
+        const evidenceResponse = await fetch(
+          `/api/documents/${document.doc_id}?includeEvidence=1`
+        );
+        if (evidenceResponse.ok) {
+          const evidencePayload = (await evidenceResponse.json()) as DocumentDetail;
+          summaryEvidence = [...(evidencePayload.chunks ?? [])].sort(
+            (a, b) =>
+              b.score - a.score ||
+              a.page_start - b.page_start ||
+              a.page_end - b.page_end ||
+              a.chunk_id.localeCompare(b.chunk_id)
+          );
+        }
       }
 
-      const response = await fetch("/api/ask", {
+      const evidenceText = summaryEvidence
+        .slice(0, 8)
+        .map((chunk) => snippetHtmlToText(chunk.snippet_html))
+        .filter(Boolean)
+        .join(" ");
+      const context = [contextSeed, evidenceText]
+        .filter(Boolean)
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 3000);
+
+      if (!context) {
+        throw new Error("No hay contexto suficiente del documento para generar resumen.");
+      }
+
+      const response = await fetch("/api/summarize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: questionParts.join(" ") }),
+        body: JSON.stringify({
+          title: document.source_name ?? document.title,
+          context,
+          lines: targetLines,
+        }),
       });
       const payload = (await response.json()) as {
-        answer?: string;
+        summary?: string;
         error?: string;
-        details?: string[];
       };
 
       if (!response.ok) {
-        const reason = payload.error ?? "Summary request failed";
-        const detail = Array.isArray(payload.details) ? payload.details[0] : "";
-        throw new Error(detail ? `${reason}: ${detail}` : reason);
+        throw new Error(payload.error ?? "Summary request failed");
       }
 
-      const answer = normalizeSummaryText(payload.answer ?? "", targetLines);
+      const answer = normalizeSummaryText(payload.summary ?? "", targetLines);
       if (!answer) {
         throw new Error("No summary generated.");
       }

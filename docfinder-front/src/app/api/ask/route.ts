@@ -8,8 +8,7 @@ import {
   snippetToText,
 } from "@/server/backend-contract";
 import { cacheHits } from "@/store/search-cache";
-import type { AskResponse } from "@/types/docfinder";
-import type { DocumentHit } from "@/types/docfinder";
+import type { AskResponse, DocumentHit } from "@/types/docfinder";
 
 type BackendAskResponse =
   | {
@@ -37,13 +36,21 @@ type AskProbeResult = {
   errors: string[];
 };
 
-const BACKEND_ASK_TIMEOUT_MS = 60_000;
-const ASK_MIN_SCORE = Number(process.env.SEARCH_MIN_SCORE ?? "0.25");
-
 type SearchContextResult = {
   hits: DocumentHit[];
   errors: string[];
 };
+
+type AskModelResult = {
+  answer: string | null;
+  error: string | null;
+};
+
+const BACKEND_ASK_TIMEOUT_MS = 60_000;
+const ASK_MIN_SCORE = Number(process.env.SEARCH_MIN_SCORE ?? "0.25");
+const OLLAMA_URL = process.env.OLLAMA_URL?.trim() || "http://127.0.0.1:11434";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL?.trim() || "qwen2.5:7b-instruct";
+const OLLAMA_ASK_TIMEOUT_MS = 45_000;
 
 function requiresIndexReinit(details: string[]) {
   return details.some((detail) => {
@@ -56,24 +63,240 @@ function requiresIndexReinit(details: string[]) {
 }
 
 function normalizeSourceKey(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replaceAll("\\", "/")
-    .split("/")
-    .pop()
-    ?.replace(/^upl-[a-z0-9]{8}-/i, "")
-    .replace(/\.[a-z0-9]+$/i, "") ?? "";
+  return (
+    value
+      .trim()
+      .toLowerCase()
+      .replaceAll("\\", "/")
+      .split("/")
+      .pop()
+      ?.replace(/^upl-[a-z0-9]{8}-/i, "")
+      .replace(/\.[a-z0-9]+$/i, "") ?? ""
+  );
 }
 
 function detectDocType(name: string, fallback = "document") {
-  const base = name.trim().replaceAll("\\", "/").split("/").pop() ?? name.trim();
+  const base =
+    name.trim().replaceAll("\\", "/").split("/").pop() ?? name.trim();
   const ext = base.includes(".") ? base.split(".").pop()?.toLowerCase() : "";
   return ext || fallback;
 }
 
+function looksLikeNoContextAnswer(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+  return (
+    normalized.includes("no se encontró contexto suficiente") ||
+    normalized.includes("no se encontro contexto suficiente") ||
+    normalized.includes("no encontré contexto suficiente") ||
+    normalized.includes("no encontre contexto suficiente") ||
+    normalized.includes("sin contexto suficiente") ||
+    normalized.includes("no context") ||
+    normalized.includes("insufficient context")
+  );
+}
+
+function uniqueCitations(citations: AskResponse["citations"]): AskResponse["citations"] {
+  const seen = new Set<string>();
+  const output: AskResponse["citations"] = [];
+  for (const citation of citations) {
+    const key = `${citation.doc_id}|${citation.page}|${citation.snippet_html}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    output.push(citation);
+  }
+  return output;
+}
+
+function pickDiverseCitationsFromHits(hits: DocumentHit[], limit = 6): AskResponse["citations"] {
+  const byDoc = new Map<string, DocumentHit>();
+  for (const hit of hits) {
+    if (!byDoc.has(hit.doc_id)) {
+      byDoc.set(hit.doc_id, hit);
+    }
+    if (byDoc.size >= limit) {
+      break;
+    }
+  }
+
+  return Array.from(byDoc.values()).map((hit) => ({
+    doc_id: hit.doc_id,
+    title: hit.title,
+    page: hit.page_start,
+    snippet_html: hit.snippet_html,
+    doc_type: hit.doc_type,
+    source_name: hit.source_name,
+  }));
+}
+
+function mapCitationsToKnownDocs(
+  citations: AskResponse["citations"],
+  rankedHits: DocumentHit[]
+): AskResponse["citations"] {
+  if (rankedHits.length === 0) {
+    return citations;
+  }
+
+  return citations.map((citation, index) => {
+    const sourceKey = normalizeSourceKey(citation.title);
+    const bySource = rankedHits.find(
+      (hit) =>
+        normalizeSourceKey(hit.source_name ?? "") === sourceKey ||
+        normalizeSourceKey(hit.title) === sourceKey
+    );
+    const byDocAndPage = rankedHits.find(
+      (hit) => hit.doc_id === citation.doc_id && hit.page_start === citation.page
+    );
+    const byDoc = rankedHits.find((hit) => hit.doc_id === citation.doc_id);
+    const byTitle = rankedHits.find(
+      (hit) => hit.title.trim().toLowerCase() === citation.title.trim().toLowerCase()
+    );
+    const byPage = rankedHits.find((hit) => hit.page_start === citation.page);
+    const fallback = rankedHits[index] ?? rankedHits[0];
+    const matched = bySource ?? byDocAndPage ?? byDoc ?? byTitle ?? byPage ?? fallback;
+
+    if (!matched) {
+      return citation;
+    }
+
+    return {
+      doc_id: matched.doc_id,
+      title: matched.title,
+      page:
+        Number.isFinite(citation.page) && citation.page > 0
+          ? citation.page
+          : matched.page_start,
+      snippet_html: citation.snippet_html || matched.snippet_html,
+      doc_type: matched.doc_type,
+      source_name: matched.source_name ?? citation.source_name,
+    };
+  });
+}
+
+function buildContextFromHits(hits: DocumentHit[], limit = 8) {
+  const selected = hits.slice(0, limit);
+  const contextParts = selected
+    .map((hit, index) => {
+      const snippet = snippetToText(hit.snippet_html);
+      if (!snippet) {
+        return "";
+      }
+      return [
+        `[${index + 1}] Documento: ${hit.title}`,
+        `Fuente: ${hit.source_name ?? hit.title}`,
+        `Pagina: ${hit.page_start}-${hit.page_end}`,
+        `Score: ${hit.score.toFixed(3)}`,
+        `Contenido: ${snippet}`,
+      ].join("\n");
+    })
+    .filter(Boolean);
+
+  return contextParts.join("\n\n---\n\n").slice(0, 9000);
+}
+
+async function generateWithOllama(prompt: string): Promise<AskModelResult> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), OLLAMA_ASK_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${OLLAMA_URL.replace(/\/$/, "")}/api/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        prompt,
+        stream: false,
+        options: {
+          temperature: 0.2,
+          num_predict: 320,
+          num_ctx: 4096,
+        },
+        keep_alive: "30m",
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const detail = await response.text();
+      return {
+        answer: null,
+        error: `Ollama failed: ${detail.slice(0, 220)}`,
+      };
+    }
+
+    const payload = (await response.json()) as { response?: string };
+    const answer = payload.response?.replace(/\s+/g, " ").trim() ?? "";
+    if (!answer) {
+      return {
+        answer: null,
+        error: "Ollama returned empty response.",
+      };
+    }
+
+    return { answer, error: null };
+  } catch (error) {
+    const reason =
+      error instanceof Error && error.name === "AbortError"
+        ? `Ollama timeout (${OLLAMA_ASK_TIMEOUT_MS / 1000}s)`
+        : error instanceof Error
+        ? error.message
+        : "Unknown Ollama error";
+    return { answer: null, error: reason };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function askWithRetrievedContext(
+  question: string,
+  hits: DocumentHit[]
+): Promise<AskModelResult> {
+  const context = buildContextFromHits(hits, 8).trim();
+  if (!context) {
+    return {
+      answer: null,
+      error: "No searchable context snippets found.",
+    };
+  }
+
+  const prompt = [
+    "Eres GandalFS, asistente de busqueda documental.",
+    "Responde SOLO con informacion del CONTEXTO.",
+    "Si no hay evidencia suficiente, responde exactamente:",
+    '"No se encontró contexto suficiente en los documentos para responder con certeza."',
+    "No inventes nombres ni datos.",
+    "Responde breve y claro en el idioma de la pregunta.",
+    "",
+    `PREGUNTA: ${question}`,
+    "",
+    "CONTEXTO:",
+    context,
+    "",
+    "RESPUESTA:",
+  ].join("\n");
+
+  return generateWithOllama(prompt);
+}
+
+async function askGeneralWithOllama(question: string): Promise<AskModelResult> {
+  const prompt = [
+    "You are GandalFS, a helpful enterprise assistant.",
+    "Answer the user's question directly and concisely.",
+    "Use the same language as the user.",
+    "Do not mention document retrieval or citations unless explicitly asked.",
+    "",
+    `Question: ${question}`,
+    "Answer:",
+  ].join("\n");
+
+  return generateWithOllama(prompt);
+}
+
 async function tryBackendAsk(baseUrl: string, question: string): Promise<AskProbeResult> {
-  const askEndpoints = ["/ask", "/ask_ai", "/question"];
+  const askEndpoints = ["/ask"];
   const errors: string[] = [];
   let foundEndpoint = false;
 
@@ -84,7 +307,7 @@ async function tryBackendAsk(baseUrl: string, question: string): Promise<AskProb
       const response = await fetch(`${baseUrl.replace(/\/$/, "")}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: question, question, search_text: question }),
+        body: JSON.stringify({ query: question }),
         signal: controller.signal,
       });
 
@@ -92,6 +315,7 @@ async function tryBackendAsk(baseUrl: string, question: string): Promise<AskProb
         continue;
       }
       foundEndpoint = true;
+
       if (!response.ok) {
         const message = await response.text();
         errors.push(`${endpoint} -> ${response.status}: ${message.slice(0, 240)}`);
@@ -159,15 +383,6 @@ async function tryBackendAsk(baseUrl: string, question: string): Promise<AskProb
   };
 }
 
-function buildAnswerFromHits(question: string, snippets: string[]): string {
-  if (!snippets.length) {
-    return `No encontré evidencia suficiente en el índice para responder: "${question}".`;
-  }
-
-  const topSnippets = snippets.slice(0, 3).join(" ");
-  return `Basado en los fragmentos recuperados: ${topSnippets}`;
-}
-
 async function loadSearchContext(baseUrl: string, question: string): Promise<SearchContextResult> {
   try {
     let rawSearch;
@@ -181,6 +396,7 @@ async function loadSearchContext(baseUrl: string, question: string): Promise<Sea
       await initBackendIndex(baseUrl);
       rawSearch = await searchBackendRaw(baseUrl, question);
     }
+
     const mapped = mapBackendHits(rawSearch, question);
     cacheHits(mapped);
     return {
@@ -193,82 +409,6 @@ async function loadSearchContext(baseUrl: string, question: string): Promise<Sea
       errors: getBackendErrorDetails(error),
     };
   }
-}
-
-function mapCitationsToKnownDocs(
-  citations: AskResponse["citations"],
-  rankedHits: DocumentHit[]
-): AskResponse["citations"] {
-  if (rankedHits.length === 0) {
-    return citations;
-  }
-
-  return citations.map((citation, index) => {
-    const sourceKey = normalizeSourceKey(citation.title);
-    const bySource = rankedHits.find(
-      (hit) =>
-        normalizeSourceKey(hit.source_name ?? "") === sourceKey ||
-        normalizeSourceKey(hit.title) === sourceKey
-    );
-    const byDocAndPage = rankedHits.find(
-      (hit) => hit.doc_id === citation.doc_id && hit.page_start === citation.page
-    );
-    const byDoc = rankedHits.find((hit) => hit.doc_id === citation.doc_id);
-    const byTitle = rankedHits.find(
-      (hit) => hit.title.trim().toLowerCase() === citation.title.trim().toLowerCase()
-    );
-    const byPage = rankedHits.find((hit) => hit.page_start === citation.page);
-    const fallback = rankedHits[index] ?? rankedHits[0];
-    const matched = bySource ?? byDocAndPage ?? byDoc ?? byTitle ?? byPage ?? fallback;
-
-    if (!matched) {
-      return citation;
-    }
-
-    return {
-      doc_id: matched.doc_id,
-      title: matched.title,
-      page: Number.isFinite(citation.page) && citation.page > 0 ? citation.page : matched.page_start,
-      snippet_html: citation.snippet_html || matched.snippet_html,
-      doc_type: matched.doc_type,
-      source_name: matched.source_name ?? citation.source_name,
-    };
-  });
-}
-
-function uniqueCitations(citations: AskResponse["citations"]): AskResponse["citations"] {
-  const seen = new Set<string>();
-  const output: AskResponse["citations"] = [];
-  for (const citation of citations) {
-    const key = `${citation.doc_id}|${citation.page}|${citation.snippet_html}`;
-    if (seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    output.push(citation);
-  }
-  return output;
-}
-
-function pickDiverseCitationsFromHits(hits: DocumentHit[], limit = 6): AskResponse["citations"] {
-  const byDoc = new Map<string, DocumentHit>();
-  for (const hit of hits) {
-    if (!byDoc.has(hit.doc_id)) {
-      byDoc.set(hit.doc_id, hit);
-    }
-    if (byDoc.size >= limit) {
-      break;
-    }
-  }
-
-  return Array.from(byDoc.values()).map((hit) => ({
-    doc_id: hit.doc_id,
-    title: hit.title,
-    page: hit.page_start,
-    snippet_html: hit.snippet_html,
-    doc_type: hit.doc_type,
-    source_name: hit.source_name,
-  }));
 }
 
 export async function POST(req: Request) {
@@ -286,20 +426,22 @@ export async function POST(req: Request) {
     );
   }
 
-  const backendAsk = await tryBackendAsk(baseUrl, question);
-  const searchContext = await loadSearchContext(baseUrl, question);
+  const [backendAsk, searchContext] = await Promise.all([
+    tryBackendAsk(baseUrl, question),
+    loadSearchContext(baseUrl, question),
+  ]);
+
   const thresholdHits = searchContext.hits.filter(
     (hit) => Number.isFinite(hit.score) && hit.score >= ASK_MIN_SCORE
   );
-  const rankedHits =
-    thresholdHits.length > 0 ? thresholdHits : searchContext.hits;
+  const rankedHits = thresholdHits.length > 0 ? thresholdHits : searchContext.hits;
 
-  if (backendAsk.response) {
+  const backendAnswer = backendAsk.response?.answer?.trim() ?? "";
+  const backendNoContext = looksLikeNoContextAnswer(backendAnswer);
+
+  if (backendAsk.response && !backendNoContext) {
     const normalizedCitations = uniqueCitations(
-      mapCitationsToKnownDocs(
-      backendAsk.response.citations ?? [],
-      searchContext.hits
-      )
+      mapCitationsToKnownDocs(backendAsk.response.citations ?? [], searchContext.hits)
     );
     const citations =
       normalizedCitations.length > 0
@@ -312,36 +454,50 @@ export async function POST(req: Request) {
     } satisfies AskResponse);
   }
 
-  try {
-    const hits = rankedHits.slice(0, 6);
-    const citations = pickDiverseCitationsFromHits(rankedHits, 6);
+  const contextual =
+    rankedHits.length > 0
+      ? await askWithRetrievedContext(question, rankedHits)
+      : ({ answer: null, error: "No ranked hits for contextual ask." } as AskModelResult);
 
-    const answer = buildAnswerFromHits(
-      question,
-      hits.map((hit) => snippetToText(hit.snippet_html)).filter(Boolean)
-    );
-
+  if (contextual.answer && !looksLikeNoContextAnswer(contextual.answer)) {
     return NextResponse.json({
-      answer,
-      citations,
+      answer: contextual.answer,
+      citations: pickDiverseCitationsFromHits(rankedHits, 6),
     } satisfies AskResponse);
-  } catch (error) {
-    if (!backendAsk.unavailable) {
-      return NextResponse.json(
-        {
-          error: "Backend LLM ask failed and fallback search is unavailable.",
-          details: [...backendAsk.errors, ...getBackendErrorDetails(error)],
-        },
-        { status: 502 }
-      );
-    }
-
-    return NextResponse.json(
-      {
-        error: "Ask failed because backend search is unavailable.",
-        details: [...searchContext.errors, ...getBackendErrorDetails(error)],
-      },
-      { status: 502 }
-    );
   }
+
+  const general = await askGeneralWithOllama(question);
+  if (general.answer) {
+    return NextResponse.json({
+      answer: general.answer,
+      citations: [],
+    } satisfies AskResponse);
+  }
+
+  if (contextual.answer) {
+    return NextResponse.json({
+      answer: contextual.answer,
+      citations: [],
+    } satisfies AskResponse);
+  }
+
+  if (backendAnswer && backendNoContext) {
+    return NextResponse.json({
+      answer: backendAnswer,
+      citations: [],
+    } satisfies AskResponse);
+  }
+
+  return NextResponse.json(
+    {
+      error: "Ask failed: no se pudo responder con contexto ni en modo general.",
+      details: [
+        ...backendAsk.errors,
+        ...searchContext.errors,
+        ...(contextual.error ? [contextual.error] : []),
+        ...(general.error ? [general.error] : []),
+      ],
+    },
+    { status: 502 }
+  );
 }
