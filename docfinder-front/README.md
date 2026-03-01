@@ -26,25 +26,29 @@ uvicorn endpoint:app --reload --port 8000
 
 ## Contratos usados
 
-- `GET /init` (vía `POST /api/init` en frontend) para inicializar índice/pipeline.
-- `POST /search` (o `POST /search `):
-  - payload: `{ "querry": "texto" }` (también soporta `query` y `q`)
-- `GET /add-index?path=/ruta/al/fichero`
-- `POST /add-index` con `{ "path": "/ruta" }` o `{ "file": { "path": "/ruta" } }`
+- `POST /init` para inicializar índice.
+- `POST /index-file` con payload `{ "path": "/ruta/al/fichero" }`.
+- `POST /search` con payload `{ "query": "texto" }`.
+- `POST /ask` con payload `{ "query": "pregunta" }`.
+
+Notas de compatibilidad en frontend:
+- Upload mantiene fallback a `/add-index` (GET/POST) para entornos backend antiguos.
+- Search mantiene fallback de keys `q`/`querry` por compatibilidad.
 
 ## Parámetros: backend vs frontend
 
 - `search`:
-  - Backend real: `querry` (también `query` y `q` por compatibilidad).
+  - Backend real: `query` (frontend mantiene compatibilidad con `q` y `querry`).
   - Frontend: `page`, `pageSize`, `filters`, `sort` se aplican en frontend sobre los hits recibidos.
 - `upload`:
-  - Backend real: solo necesita la `path` del fichero para indexar.
+  - Backend real: `POST /index-file` con `path`.
   - Frontend: `doc_type`, `category`, `tags`, `lang` se guardan en un registro local para enriquecer resultados y filtros.
 - `ask`:
-  - Si existe backend `/ask` o `/ask_ai`, se usa directamente.
+  - Backend real: `POST /ask` con `query`.
+  - Si existe backend `/ask_ai` o `/question`, frontend puede usarlo como fallback de compatibilidad.
   - Si no existe, frontend usa `/search` para generar respuesta+fuentes (RAG ligero).
 - `init`:
-  - Backend real: sin parámetros (`GET /init`).
+  - Backend real: sin parámetros (`POST /init`).
 
 ## Estado actual
 

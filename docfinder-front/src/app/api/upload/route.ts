@@ -111,6 +111,15 @@ export async function POST(req: Request) {
 
   const attempts: Array<{ url: string; init: RequestInit; label: string }> = [
     {
+      url: `${baseUrl.replace(/\/$/, "")}/index-file`,
+      init: {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: fullPath }),
+      },
+      label: "POST /index-file {path}",
+    },
+    {
       url: `${baseUrl.replace(/\/$/, "")}/add-index`,
       init: {
         method: "POST",

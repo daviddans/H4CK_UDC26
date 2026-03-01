@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import {
   getBackendErrorDetails,
+  initBackendIndex,
   mapBackendHits,
   searchBackendRaw,
   snippetToText,
@@ -13,6 +14,10 @@ import type { DocumentHit } from "@/types/docfinder";
 type BackendAskResponse =
   | {
       answer?: string;
+      sources?: Array<{
+        file?: string;
+        chunk?: number;
+      }>;
       citations?: Array<{
         doc_id?: string;
         title?: string;
@@ -38,8 +43,29 @@ type SearchContextResult = {
   errors: string[];
 };
 
+function requiresIndexReinit(details: string[]) {
+  return details.some((detail) => {
+    const lower = detail.toLowerCase();
+    return (
+      lower.includes("index_not_found_exception") ||
+      lower.includes("not knn_vector type")
+    );
+  });
+}
+
+function normalizeSourceKey(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replaceAll("\\", "/")
+    .split("/")
+    .pop()
+    ?.replace(/^upl-[a-z0-9]{8}-/i, "")
+    .replace(/\.[a-z0-9]+$/i, "") ?? "";
+}
+
 async function tryBackendAsk(baseUrl: string, question: string): Promise<AskProbeResult> {
-  const askEndpoints = ["/ask", "/ask_ai"];
+  const askEndpoints = ["/ask", "/ask_ai", "/question"];
   const errors: string[] = [];
   let foundEndpoint = false;
 
@@ -50,7 +76,7 @@ async function tryBackendAsk(baseUrl: string, question: string): Promise<AskProb
       const response = await fetch(`${baseUrl.replace(/\/$/, "")}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, search_text: question }),
+        body: JSON.stringify({ query: question, question, search_text: question }),
         signal: controller.signal,
       });
 
@@ -66,15 +92,25 @@ async function tryBackendAsk(baseUrl: string, question: string): Promise<AskProb
 
       const data = (await response.json()) as BackendAskResponse;
       if ("answer" in data && typeof data.answer === "string") {
+        const fallbackCitations =
+          Array.isArray(data.sources) && data.sources.length > 0
+            ? data.sources.map((source) => ({
+                doc_id: "unknown",
+                title: source.file ?? "Document",
+                page: Number(source.chunk ?? 0) + 1,
+                snippet_html: "",
+              }))
+            : [];
+        const mappedCitations = (data.citations ?? []).map((citation) => ({
+          doc_id: citation.doc_id ?? "unknown",
+          title: citation.title ?? "Document",
+          page: Number(citation.page ?? 1),
+          snippet_html: citation.snippet_html ?? "",
+        }));
         return {
           response: {
             answer: data.answer,
-            citations: (data.citations ?? []).map((citation) => ({
-              doc_id: citation.doc_id ?? "unknown",
-              title: citation.title ?? "Document",
-              page: Number(citation.page ?? 1),
-              snippet_html: citation.snippet_html ?? "",
-            })),
+            citations: mappedCitations.length > 0 ? mappedCitations : fallbackCitations,
           },
           unavailable: false,
           errors,
@@ -122,7 +158,17 @@ function buildAnswerFromHits(question: string, snippets: string[]): string {
 
 async function loadSearchContext(baseUrl: string, question: string): Promise<SearchContextResult> {
   try {
-    const rawSearch = await searchBackendRaw(baseUrl, question);
+    let rawSearch;
+    try {
+      rawSearch = await searchBackendRaw(baseUrl, question);
+    } catch (error) {
+      const details = getBackendErrorDetails(error);
+      if (!requiresIndexReinit(details)) {
+        throw error;
+      }
+      await initBackendIndex(baseUrl);
+      rawSearch = await searchBackendRaw(baseUrl, question);
+    }
     const mapped = mapBackendHits(rawSearch, question);
     cacheHits(mapped);
     return {
@@ -146,6 +192,12 @@ function mapCitationsToKnownDocs(
   }
 
   return citations.map((citation, index) => {
+    const sourceKey = normalizeSourceKey(citation.title);
+    const bySource = rankedHits.find(
+      (hit) =>
+        normalizeSourceKey(hit.source_name ?? "") === sourceKey ||
+        normalizeSourceKey(hit.title) === sourceKey
+    );
     const byDocAndPage = rankedHits.find(
       (hit) => hit.doc_id === citation.doc_id && hit.page_start === citation.page
     );
@@ -155,7 +207,7 @@ function mapCitationsToKnownDocs(
     );
     const byPage = rankedHits.find((hit) => hit.page_start === citation.page);
     const fallback = rankedHits[index] ?? rankedHits[0];
-    const matched = byDocAndPage ?? byDoc ?? byTitle ?? byPage ?? fallback;
+    const matched = bySource ?? byDocAndPage ?? byDoc ?? byTitle ?? byPage ?? fallback;
 
     if (!matched) {
       return citation;

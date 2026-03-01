@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import {
   getBackendErrorDetails,
+  initBackendIndex,
   mapBackendHits,
   searchBackendRaw,
 } from "@/server/backend-contract";
@@ -26,6 +27,16 @@ type SearchBody = {
 };
 
 const SEARCH_MIN_SCORE = Number(process.env.SEARCH_MIN_SCORE ?? "0.25");
+
+function requiresIndexReinit(details: string[]) {
+  return details.some((detail) => {
+    const lower = detail.toLowerCase();
+    return (
+      lower.includes("index_not_found_exception") ||
+      lower.includes("not knn_vector type")
+    );
+  });
+}
 
 function normalizeValue(value: string) {
   return value.trim().toLowerCase();
@@ -200,7 +211,17 @@ export async function POST(req: Request) {
   }
 
   try {
-    const backendPayload = await searchBackendRaw(baseUrl, queryText);
+    let backendPayload;
+    try {
+      backendPayload = await searchBackendRaw(baseUrl, queryText);
+    } catch (error) {
+      const details = getBackendErrorDetails(error);
+      if (!requiresIndexReinit(details)) {
+        throw error;
+      }
+      await initBackendIndex(baseUrl);
+      backendPayload = await searchBackendRaw(baseUrl, queryText);
+    }
     const mapped = mapBackendHits(backendPayload, queryText);
     const scoreFiltered = mapped.filter(
       (hit) => Number.isFinite(hit.score) && hit.score >= SEARCH_MIN_SCORE

@@ -11,7 +11,7 @@ export async function POST() {
 
   try {
     const response = await fetch(`${baseUrl.replace(/\/$/, "")}/init`, {
-      method: "GET",
+      method: "POST",
     });
     const text = await response.text();
     if (!response.ok) {

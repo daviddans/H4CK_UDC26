@@ -165,9 +165,9 @@ function makeSnippet(content: string, queryText: string) {
 
 export async function searchBackendRaw(baseUrl: string, queryText: string): Promise<BackendSearchResponse> {
   const backendAttempts: SearchPayloadVariants[] = [
-    { querry: queryText },
     { query: queryText },
     { q: queryText },
+    { querry: queryText },
   ];
   const backendPaths = ["/search", "/search%20"];
   const errors: string[] = [];
@@ -199,6 +199,18 @@ export async function searchBackendRaw(baseUrl: string, queryText: string): Prom
   const err = new Error("Backend search failed.");
   (err as Error & { details?: string[] }).details = errors;
   throw err;
+}
+
+export async function initBackendIndex(baseUrl: string) {
+  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/init`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    const err = new Error("Backend init failed.");
+    (err as Error & { details?: string[] }).details = [text.slice(0, 240)];
+    throw err;
+  }
 }
 
 export function getBackendErrorDetails(error: unknown): string[] {
