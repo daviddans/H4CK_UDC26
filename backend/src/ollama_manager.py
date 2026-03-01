@@ -9,7 +9,7 @@ class OllamaManager:
         self.model = model
         self.num_predict = int(os.getenv("OLLAMA_NUM_PREDICT", "360"))
         self.num_ctx = int(os.getenv("OLLAMA_NUM_CTX", "2048"))
-        self.temperature = float(os.getenv("OLLAMA_TEMPERATURE", "0.4"))
+        self.temperature = float(os.getenv("OLLAMA_TEMPERATURE", "0.6"))
         self.keep_alive = os.getenv("OLLAMA_KEEP_ALIVE", "5m")
         self.top_p = float(os.getenv("OLLAMA_TOP_P", "0.8"))
         self.top_k = int(os.getenv("OLLAMA_TOP_K", "50"))
@@ -17,9 +17,9 @@ class OllamaManager:
 
     def generate_answer(self, query, context_chunks):
         # Keep prompt compact for lower latency.
-        context = "Eres un asistente especifico de conocimiento. (Embedido en el software de busqueda de ficheros empresarial GandalFS)\n"
-        context += " Responde las preguntas del usuario con el conocimiento disponible:\n\n"
-        context += "Documentos relevantes recuperados:\n"
+        context = "Eres un asistente especifico de conocimiento. Tu objetivo es ayudar al usuario con información basada en documentos disponibles.\n"
+        context += "Responde las preguntas del usuario con el conocimiento disponible. Siempre y cuando las entradas recuperadas parezcan de buena calidad y tengan relacion con la pregunta del usuario:\n\n"
+        context += f"-Documentos relevantes recuperados(Numero: {len(context_chunks)}-)\n"
         for chunk in context_chunks:
             if 'metadata' in chunk and 'content' in chunk:
                 metadata = chunk['metadata']  # Accedemos al diccionario 'metadata'
@@ -33,9 +33,11 @@ class OllamaManager:
                 tags = metadata['tags'] if 'tags' in metadata else []
 
             context += f"+Archivo: {name} | Chunk ID: {id} | Título: {title} | Fecha: {date} | Idioma: {lang} | Tags: {tags} | \n +Contenido del fragmento: {content}. \n\n\n\n"
-        context += f"-Consulta del usuario: {query}\n\n -Procede a responder a la consulta del usuario utilizando el conocimiento disponible."
+        context += f"\n\n{query}\n\n -Procede a responder a la consulta del usuario utilizando el conocimiento disponible."
         context += "Referencia los docuentos relevantes en tu respuesta, indicando claramente a qué documento te refieres. Si no tienes suficiente información para responder a la consulta, indícalo claramente."
-        context += " Responde de manera clara y concisa, evitando redundancias y respondiendo con un tono similar al de la pregunta.."
+        context += " Responde de manera clara y concisa, evitando redundancias y respondiendo con un tono orgánico y humano, sin parecer un robot. No inventes información, responde solo con lo que sabes."
+        context += " Si la consulta del usuario no tiene sentido o es ambigua, indícalo claramente y pide más información."
+        context += " Por ultimo, si la consulta del usuario no tiene relación con los documentos disponibles, notificalo e ignora el contexto para responder la consulta."
         try:
             response = ollama.generate(
                 model=self.model,
