@@ -36,6 +36,21 @@ export function ResultCard({
   const showDocId = !hit.doc_id.startsWith("UPL-");
   const canDelete = hit.doc_id.startsWith("UPL-") && Boolean(onDelete);
   const href = detailHref ?? `/document/${hit.doc_id}`;
+  const normalizedCategory = hit.category?.trim().toLowerCase() ?? "";
+  const showCategory = Boolean(hit.category) && !["backend", "indexed", "uploaded"].includes(normalizedCategory);
+  const safePageStart = Math.max(1, hit.page_start);
+  const safePageEnd = Math.max(safePageStart, hit.page_end);
+  const safeTotalPages = hit.total_pages
+    ? Math.max(hit.total_pages, safePageEnd)
+    : undefined;
+  const hasSinglePage = safePageStart === safePageEnd;
+  const pageLabel = safeTotalPages && safeTotalPages > 0
+    ? hasSinglePage
+      ? `pag. ${safePageStart}/${safeTotalPages}`
+      : `pag. ${safePageStart}-${safePageEnd}/${safeTotalPages}`
+    : hasSinglePage
+      ? `pag. ${safePageStart}`
+      : `pag. ${safePageStart}-${safePageEnd}`;
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -89,9 +104,11 @@ export function ResultCard({
               <Badge variant="accent" className="capitalize">
                 {hit.doc_type}
               </Badge>
-              <Badge variant="outline" className="capitalize">
-                {hit.category}
-              </Badge>
+              {showCategory ? (
+                <Badge variant="outline" className="capitalize">
+                  {hit.category}
+                </Badge>
+              ) : null}
               <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                 <Sparkles className="h-3.5 w-3.5" />
                 {hit.score.toFixed(2)}
@@ -134,7 +151,7 @@ export function ResultCard({
               </span>
               <span className="inline-flex items-center gap-1">
                 <FileText className="h-3.5 w-3.5" />
-                pag. {hit.page_start}-{hit.page_end}
+                {pageLabel}
               </span>
               <span className="truncate text-right text-slate-400 dark:text-slate-500">
                 {showDocId ? hit.doc_id : ""}

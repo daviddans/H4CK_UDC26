@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -70,9 +70,8 @@ export function UploadModal({ trigger, onUploaded, suggestedTags = [] }: UploadM
   const [knownTags, setKnownTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [initLoading, setInitLoading] = useState(false);
-  const [initMessage, setInitMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const uploadAbortRef = useRef<AbortController | null>(null);
 
   const availableTags = useMemo(() => {
     return Array.from(
@@ -193,9 +192,17 @@ export function UploadModal({ trigger, onUploaded, suggestedTags = [] }: UploadM
 
     setError(null);
     setLoading(true);
+    const controller = new AbortController();
+    uploadAbortRef.current = controller;
+    let cancelled = false;
 
-    const queue = jobs;
+    const queue = [...jobs];
     for (const job of queue) {
+      if (controller.signal.aborted) {
+        cancelled = true;
+        break;
+      }
+
       if (job.status === "done") {
         continue;
       }
@@ -210,6 +217,7 @@ export function UploadModal({ trigger, onUploaded, suggestedTags = [] }: UploadM
         const response = await fetch("/api/upload", {
           method: "POST",
           body: formData,
+          signal: controller.signal,
         });
 
         const data = (await response.json()) as {
@@ -237,6 +245,14 @@ export function UploadModal({ trigger, onUploaded, suggestedTags = [] }: UploadM
           onUploaded?.(data.doc_id);
         }
       } catch (err) {
+        const isAbort =
+          (err instanceof DOMException && err.name === "AbortError") ||
+          (err instanceof Error && err.name === "AbortError");
+        if (isAbort) {
+          cancelled = true;
+          break;
+        }
+
         updateJob(job.id, {
           status: "error",
           message: err instanceof Error ? err.message : "Unexpected upload error",
@@ -244,11 +260,16 @@ export function UploadModal({ trigger, onUploaded, suggestedTags = [] }: UploadM
       }
     }
 
-    setLoading(false);
-  };
+    if (cancelled) {
+      setError("Upload canceled.");
+    }
 
-  const clearCompleted = () => {
-    setJobs((prev) => prev.filter((job) => job.status !== "done" && job.status !== "error"));
+    uploadAbortRef.current = null;
+    setLoading(false);
+    // Return to initial state after each run.
+    setJobs([]);
+    setTagInput("");
+    setSelectedTags([]);
   };
 
   const resetAndClose = () => {
@@ -260,29 +281,8 @@ export function UploadModal({ trigger, onUploaded, suggestedTags = [] }: UploadM
     setError(null);
   };
 
-  const onInitIndex = async () => {
-    setInitLoading(true);
-    setInitMessage(null);
-    setError(null);
-    try {
-      const response = await fetch("/api/init", { method: "POST" });
-      const payload = (await response.json()) as {
-        error?: string;
-        details?: string[];
-      };
-      if (!response.ok) {
-        throw new Error(
-          payload.error
-            ? `${payload.error}${payload.details?.[0] ? `: ${payload.details[0]}` : ""}`
-            : "Init failed"
-        );
-      }
-      setInitMessage("Index initialized in backend.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unexpected init error");
-    } finally {
-      setInitLoading(false);
-    }
+  const cancelUpload = () => {
+    uploadAbortRef.current?.abort();
   };
 
   return (
@@ -302,31 +302,6 @@ export function UploadModal({ trigger, onUploaded, suggestedTags = [] }: UploadM
             Drop multiple files and track each one while it uploads and indexes.
           </DialogDescription>
         </DialogHeader>
-
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200/90 bg-slate-50/90 px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
-          <p className="text-xs text-slate-600 dark:text-slate-300">Backend tools</p>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onInitIndex}
-            disabled={initLoading || loading}
-          >
-            {initLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Initializing
-              </>
-            ) : (
-              "Init index"
-            )}
-          </Button>
-        </div>
-
-        {initMessage && (
-          <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-            {initMessage}
-          </p>
-        )}
 
         <label
           className="flex min-h-40 cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-center hover:border-cyan-300 hover:bg-cyan-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-cyan-500/60 dark:hover:bg-cyan-500/10"
@@ -470,22 +445,20 @@ export function UploadModal({ trigger, onUploaded, suggestedTags = [] }: UploadM
         {error && <p className="text-sm font-medium text-rose-600">{error}</p>}
 
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={resetAndClose} disabled={loading}>
-            Close
-          </Button>
-          <Button variant="ghost" onClick={clearCompleted} disabled={loading || jobs.length === 0}>
-            Clear finished
-          </Button>
-          <Button onClick={onSubmit} variant="accent" disabled={loading || jobs.length === 0}>
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Processing
-              </>
-            ) : (
-              "Upload all"
-            )}
-          </Button>
+          {loading ? (
+            <Button variant="outline" onClick={cancelUpload}>
+              Cancel
+            </Button>
+          ) : (
+            <>
+              <Button variant="secondary" onClick={resetAndClose}>
+                Close
+              </Button>
+              <Button onClick={onSubmit} variant="accent" disabled={jobs.length === 0}>
+                Upload
+              </Button>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

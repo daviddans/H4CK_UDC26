@@ -23,6 +23,8 @@ type BackendAskResponse =
         title?: string;
         page?: number;
         snippet_html?: string;
+        doc_type?: string;
+        source_name?: string;
       }>;
     }
   | {
@@ -64,6 +66,12 @@ function normalizeSourceKey(value: string) {
     .replace(/\.[a-z0-9]+$/i, "") ?? "";
 }
 
+function detectDocType(name: string, fallback = "document") {
+  const base = name.trim().replaceAll("\\", "/").split("/").pop() ?? name.trim();
+  const ext = base.includes(".") ? base.split(".").pop()?.toLowerCase() : "";
+  return ext || fallback;
+}
+
 async function tryBackendAsk(baseUrl: string, question: string): Promise<AskProbeResult> {
   const askEndpoints = ["/ask", "/ask_ai", "/question"];
   const errors: string[] = [];
@@ -99,6 +107,8 @@ async function tryBackendAsk(baseUrl: string, question: string): Promise<AskProb
                 title: source.file ?? "Document",
                 page: Number(source.chunk ?? 0) + 1,
                 snippet_html: "",
+                doc_type: detectDocType(source.file ?? ""),
+                source_name: source.file ?? "Document",
               }))
             : [];
         const mappedCitations = (data.citations ?? []).map((citation) => ({
@@ -106,6 +116,8 @@ async function tryBackendAsk(baseUrl: string, question: string): Promise<AskProb
           title: citation.title ?? "Document",
           page: Number(citation.page ?? 1),
           snippet_html: citation.snippet_html ?? "",
+          doc_type: citation.doc_type,
+          source_name: citation.source_name,
         }));
         return {
           response: {
@@ -218,6 +230,8 @@ function mapCitationsToKnownDocs(
       title: matched.title,
       page: Number.isFinite(citation.page) && citation.page > 0 ? citation.page : matched.page_start,
       snippet_html: citation.snippet_html || matched.snippet_html,
+      doc_type: matched.doc_type,
+      source_name: matched.source_name ?? citation.source_name,
     };
   });
 }
@@ -252,6 +266,8 @@ function pickDiverseCitationsFromHits(hits: DocumentHit[], limit = 6): AskRespon
     title: hit.title,
     page: hit.page_start,
     snippet_html: hit.snippet_html,
+    doc_type: hit.doc_type,
+    source_name: hit.source_name,
   }));
 }
 

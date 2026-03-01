@@ -10,6 +10,7 @@ import {
   Languages,
   Loader2,
   Plus,
+  Sparkles,
   Tag,
   Trash2,
   BookOpen,
@@ -22,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 function MetadataRow({
   label,
@@ -48,6 +50,44 @@ function normalizeTag(value: string) {
   return value.trim().toLowerCase();
 }
 
+function estimateSummaryLines(totalPages: number | null) {
+  if (!totalPages || totalPages <= 3) {
+    return 1;
+  }
+  if (totalPages <= 12) {
+    return 2;
+  }
+  return 3;
+}
+
+function normalizeSummaryText(value: string, targetLines: number) {
+  const compact = value.replace(/\s+/g, " ").trim();
+  if (!compact) {
+    return "";
+  }
+  const sentences = compact
+    .split(/(?<=[.!?])\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (sentences.length >= targetLines) {
+    return sentences.slice(0, targetLines).join(" ");
+  }
+  return compact;
+}
+
+function scoreTone(score: number) {
+  if (score >= 1) {
+    return "text-emerald-700 dark:text-emerald-300";
+  }
+  if (score >= 0.7) {
+    return "text-cyan-700 dark:text-cyan-300";
+  }
+  if (score >= 0.4) {
+    return "text-amber-700 dark:text-amber-300";
+  }
+  return "text-slate-600 dark:text-slate-300";
+}
+
 export default function DocumentDetailPage() {
   const params = useParams<{ docId: string }>();
   const router = useRouter();
@@ -67,6 +107,9 @@ export default function DocumentDetailPage() {
   const [tagInput, setTagInput] = useState("");
   const [tagSaving, setTagSaving] = useState(false);
   const [tagError, setTagError] = useState<string | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryText, setSummaryText] = useState<string | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -130,20 +173,39 @@ export default function DocumentDetailPage() {
     };
   }, [docId, includeEvidenceContext, requestedPage]);
 
+  const rankedEvidence = useMemo(
+    () =>
+      [...(document?.chunks ?? [])].sort(
+        (a, b) =>
+          b.score - a.score ||
+          a.page_start - b.page_start ||
+          a.page_end - b.page_end ||
+          a.chunk_id.localeCompare(b.chunk_id)
+      ),
+    [document?.chunks]
+  );
+  const evidencePages = useMemo(() => {
+    const byPage = new Map<number, number>();
+    for (const chunk of rankedEvidence) {
+      byPage.set(chunk.page_start, (byPage.get(chunk.page_start) ?? 0) + 1);
+    }
+    return Array.from(byPage.entries()).sort((a, b) => a[0] - b[0]);
+  }, [rankedEvidence]);
   const selectedChunk = useMemo(
-    () => document?.chunks.find((chunk) => chunk.page_start === selectedPage),
-    [document, selectedPage]
+    () => rankedEvidence.find((chunk) => chunk.page_start === selectedPage) ?? rankedEvidence[0],
+    [rankedEvidence, selectedPage]
   );
   const hasDownloadUrl = Boolean(document?.download_url);
   const hasOpenUrl = Boolean(document?.open_url);
   const viewerType = document?.viewer_type ?? "binary";
   const canDelete = Boolean(document?.source_path);
-  const hasIndexedEvidence = document?.chunks.length ? document.chunks.length > 0 : false;
+  const hasIndexedEvidence = rankedEvidence.length > 0;
   const showDocId = document ? !document.doc_id.startsWith("UPL-") : false;
   const canEditTags = Boolean(document?.doc_id.startsWith("UPL-"));
   const normalizedCategory = document?.category?.trim().toLowerCase() ?? "";
   const showCategory = Boolean(document?.category) && !["backend", "indexed"].includes(normalizedCategory);
   const totalPages = document?.total_pages ?? null;
+  const summaryLines = estimateSummaryLines(totalPages);
   const viewerOpenUrl = useMemo(() => {
     const openUrl = document?.open_url ?? "";
     if (!openUrl) {
@@ -155,14 +217,25 @@ export default function DocumentDetailPage() {
     return `${openUrl.split("#")[0]}#page=${selectedPage}`;
   }, [document?.open_url, viewerType, selectedPage]);
 
+  useEffect(() => {
+    setSummaryText(null);
+    setSummaryError(null);
+    setSummaryLoading(false);
+  }, [document?.doc_id]);
+
+  useEffect(() => {
+    if (!includeEvidenceContext || selectedPage || rankedEvidence.length === 0) {
+      return;
+    }
+    setSelectedPage(rankedEvidence[0].page_start);
+  }, [includeEvidenceContext, rankedEvidence, selectedPage]);
+
   const onDelete = async () => {
     if (!document || deleteLoading) {
       return;
     }
 
-    const approved = window.confirm(
-      "Delete this local file and metadata? Backend index delete is not available yet."
-    );
+    const approved = window.confirm("Delete this document?");
     if (!approved) {
       return;
     }
@@ -182,6 +255,65 @@ export default function DocumentDetailPage() {
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : "Delete failed");
       setDeleteLoading(false);
+    }
+  };
+
+  const onBack = () => {
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push("/");
+  };
+
+  const onSummarize = async () => {
+    if (!document || summaryLoading) {
+      return;
+    }
+
+    setSummaryLoading(true);
+    setSummaryError(null);
+    try {
+      const targetLines = estimateSummaryLines(totalPages);
+      const contextSeed =
+        viewerType === "text" || viewerType === "csv"
+          ? textPreview.replace(/\s+/g, " ").trim().slice(0, 2600)
+          : "";
+      const questionParts = [
+        `Resume el documento "${document.source_name ?? document.title}" en ${targetLines} linea${targetLines > 1 ? "s" : ""} como máximo.`,
+        "No inventes datos.",
+        "Responde en español claro y profesional.",
+      ];
+      if (contextSeed) {
+        questionParts.push(`Contexto del documento: ${contextSeed}`);
+      }
+
+      const response = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: questionParts.join(" ") }),
+      });
+      const payload = (await response.json()) as {
+        answer?: string;
+        error?: string;
+        details?: string[];
+      };
+
+      if (!response.ok) {
+        const reason = payload.error ?? "Summary request failed";
+        const detail = Array.isArray(payload.details) ? payload.details[0] : "";
+        throw new Error(detail ? `${reason}: ${detail}` : reason);
+      }
+
+      const answer = normalizeSummaryText(payload.answer ?? "", targetLines);
+      if (!answer) {
+        throw new Error("No summary generated.");
+      }
+      setSummaryText(answer);
+    } catch (error) {
+      setSummaryError(error instanceof Error ? error.message : "Summary request failed");
+    } finally {
+      setSummaryLoading(false);
     }
   };
 
@@ -312,11 +444,11 @@ export default function DocumentDetailPage() {
     <div className="mx-auto max-w-[1400px] space-y-5 px-5 py-6 md:px-8">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-cyan-700">DocFinder</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-cyan-700">GandalFS &lt;&gt;</p>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{document.title}</h1>
         </div>
-        <Button asChild variant="secondary">
-          <Link href="/">Back</Link>
+        <Button variant="secondary" onClick={onBack}>
+          Back
         </Button>
       </div>
 
@@ -498,7 +630,7 @@ export default function DocumentDetailPage() {
                 disabled={!canDelete || deleteLoading}
               >
                 <Trash2 className="h-4 w-4" />
-                {deleteLoading ? "Deleting..." : "Delete local file"}
+                {deleteLoading ? "Deleting..." : "Delete"}
               </Button>
             </div>
             {deleteError ? (
@@ -516,14 +648,9 @@ export default function DocumentDetailPage() {
               ref={previewRef}
               className="flex min-h-[560px] flex-col justify-between rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-900"
             >
-              <div>
-                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  {viewerType === "pdf" ? "PDF Viewer" : "Document Viewer"}
-                </p>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  {document.source_name ?? "Source file"}
-                </p>
-              </div>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {document.source_name ?? "Source file"}
+              </p>
 
               {viewerType === "pdf" && hasOpenUrl ? (
                 <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950">
@@ -546,8 +673,9 @@ export default function DocumentDetailPage() {
                   {selectedChunk ? (
                     <>
                       <p className="mb-2 text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                        highlighted evidence pag. {selectedChunk.page_start}
+                        evidence focus pag. {selectedChunk.page_start}
                         {totalPages ? `/${totalPages}` : ""}
+                        {` · score ${selectedChunk.score.toFixed(2)}`}
                       </p>
                       <div dangerouslySetInnerHTML={{ __html: selectedChunk.snippet_html }} />
                     </>
@@ -557,7 +685,43 @@ export default function DocumentDetailPage() {
                 </div>
               )}
 
-              <div className="flex justify-end">
+              <div className="mt-4 rounded-2xl border border-slate-200/90 bg-white/70 p-3 dark:border-slate-700 dark:bg-slate-900/70">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600 dark:text-slate-300">
+                    Summary
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => void onSummarize()}
+                    disabled={summaryLoading}
+                  >
+                    {summaryLoading ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Summarizing...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Summarize ({summaryLines} line{summaryLines > 1 ? "s" : ""})
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {summaryText ? (
+                  <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200">{summaryText}</p>
+                ) : summaryError ? (
+                  <p className="text-xs text-rose-600 dark:text-rose-300">{summaryError}</p>
+                ) : (
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Generate a short summary of this document.
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-4 flex justify-center border-t border-slate-200/80 pt-4 dark:border-slate-700/80">
                 {hasOpenUrl ? (
                   <Button asChild variant="secondary">
                     <a href={viewerOpenUrl || document.open_url} target="_blank" rel="noreferrer">
@@ -582,44 +746,91 @@ export default function DocumentDetailPage() {
               <CardTitle className="text-base">Evidencias</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {document.chunks.length === 0 ? (
+              {rankedEvidence.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                   No evidence chunks available for this search context.
                 </div>
               ) : (
-                document.chunks.map((chunk) => (
-                  <article
-                    key={chunk.chunk_id}
-                    className="rounded-2xl border border-slate-200 bg-white p-3 text-sm dark:border-slate-700 dark:bg-slate-900"
-                  >
-                    <div className="mb-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                      <span>{chunk.doc_id.startsWith("UPL-") ? "" : chunk.doc_id}</span>
+                <>
+                  <div className="rounded-2xl border border-slate-200/90 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-900/70">
+                    <div className="flex items-center justify-between text-xs font-medium text-slate-600 dark:text-slate-300">
+                      <span>Ordered by relevance</span>
                       <span>
-                        pag. {chunk.page_start}
-                        {totalPages ? `/${totalPages}` : ""}
+                        {rankedEvidence.length} chunks · {evidencePages.length} pages
                       </span>
                     </div>
-                    <div
-                      className="text-slate-600 dark:text-slate-300"
-                      dangerouslySetInnerHTML={{ __html: chunk.snippet_html }}
-                    />
-                    <div className="mt-3 flex justify-end">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setSelectedPage(chunk.page_start);
-                          previewRef.current?.scrollIntoView({
-                            behavior: "smooth",
-                            block: "start",
-                          });
-                        }}
-                      >
-                        Ir a página
-                      </Button>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {evidencePages.map(([page, count]) => (
+                        <button
+                          key={`evidence-page-${page}`}
+                          type="button"
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition",
+                            selectedPage === page
+                              ? "border-cyan-500 bg-cyan-500 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-900"
+                              : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                          )}
+                          onClick={() => setSelectedPage(page)}
+                        >
+                          <span>
+                            p.{page}
+                            {totalPages ? `/${totalPages}` : ""}
+                          </span>
+                          <span className="rounded-full bg-black/10 px-1.5 py-0.5 text-[10px] font-bold dark:bg-white/10">
+                            {count}
+                          </span>
+                        </button>
+                      ))}
                     </div>
-                  </article>
-                ))
+                  </div>
+
+                  {rankedEvidence.map((chunk, index) => {
+                    const isActive = selectedPage === chunk.page_start;
+                    return (
+                      <article
+                        key={chunk.chunk_id}
+                        className={cn(
+                          "rounded-2xl border bg-white p-3 text-sm transition dark:bg-slate-900",
+                          isActive
+                            ? "border-cyan-300 shadow-[0_0_0_1px_rgba(14,165,233,0.2)] dark:border-cyan-500/60"
+                            : "border-slate-200 dark:border-slate-700"
+                        )}
+                      >
+                        <div className="mb-2 flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">#{index + 1}</Badge>
+                            <span className={cn("font-semibold", scoreTone(chunk.score))}>
+                              score {chunk.score.toFixed(2)}
+                            </span>
+                          </div>
+                          <span>
+                            pag. {chunk.page_start}
+                            {totalPages ? `/${totalPages}` : ""}
+                          </span>
+                        </div>
+                        <div
+                          className="line-clamp-4 text-slate-600 dark:text-slate-300"
+                          dangerouslySetInnerHTML={{ __html: chunk.snippet_html }}
+                        />
+                        <div className="mt-3 flex justify-end">
+                          <Button
+                            size="sm"
+                            variant={isActive ? "secondary" : "ghost"}
+                            onClick={() => {
+                              setSelectedPage(chunk.page_start);
+                              previewRef.current?.scrollIntoView({
+                                behavior: "smooth",
+                                block: "start",
+                              });
+                            }}
+                          >
+                            Ir a documento
+                          </Button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </>
               )}
             </CardContent>
           </Card>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   AlertTriangle,
@@ -14,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 
-import type { AskResponse, SearchApiResponse, SearchFilters, SearchMode } from "@/types/docfinder";
+import type { AskResponse, SearchApiResponse, SearchFilters, SearchMode, SortMode } from "@/types/docfinder";
 import { AskPanel } from "@/components/docfinder/ask-panel";
 import { FilterSidebar } from "@/components/docfinder/filter-sidebar";
 import { ResultCard } from "@/components/docfinder/result-card";
@@ -24,11 +25,11 @@ import { UploadModal } from "@/components/docfinder/upload-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE_SEARCH = 6;
 const PAGE_SIZE_LIBRARY = 8;
+const SEARCH_HISTORY_KEY = "docfinder:search-history";
 
 const DEFAULT_FILTERS: SearchFilters = {
   doc_type: [],
@@ -53,6 +54,38 @@ const INITIAL_DATA: SearchApiResponse = {
   },
 };
 
+function parseListParam(value: string | null) {
+  if (!value) {
+    return [];
+  }
+  return Array.from(
+    new Set(
+      value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+function parsePositiveIntParam(value: string | null, fallback = 1) {
+  if (!value) {
+    return fallback;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return fallback;
+  }
+  return Math.floor(parsed);
+}
+
+function parseSortParam(value: string | null): SortMode {
+  if (value === "relevance_asc" || value === "date_desc" || value === "date_asc") {
+    return value;
+  }
+  return "relevance_desc";
+}
+
 function buildPagination(current: number, totalPages: number) {
   const start = Math.max(1, current - 2);
   const end = Math.min(totalPages, current + 2);
@@ -63,7 +96,20 @@ function buildPagination(current: number, totalPages: number) {
   return pages;
 }
 
+function autoResizeTextarea(element: HTMLTextAreaElement | null) {
+  if (!element) {
+    return;
+  }
+  element.style.height = "0px";
+  element.style.height = `${element.scrollHeight}px`;
+}
+
 export default function HomePage() {
+  const router = useRouter();
+  const restoredFromUrlRef = useRef(false);
+  const searchTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const askTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [stateReady, setStateReady] = useState(false);
   const [mode, setMode] = useState<SearchMode>("search");
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS);
@@ -80,6 +126,99 @@ export default function HomePage() {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
   const [searchTick, setSearchTick] = useState(0);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  useEffect(() => {
+    if (restoredFromUrlRef.current) {
+      return;
+    }
+
+    const params =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search)
+        : new URLSearchParams();
+
+    const modeParam = params.get("mode");
+    const queryParam = params.get("q");
+    const pageParam = params.get("page");
+    const viewParam = params.get("view");
+    const docTypeParam = params.get("docType");
+    const tagsParam = params.get("tags");
+    const langParam = params.get("lang");
+    const fromParam = params.get("fromDate");
+    const toParam = params.get("toDate");
+    const sortParam = params.get("sort");
+
+    const nextMode: SearchMode = modeParam === "ask" ? "ask" : "search";
+    const nextView = viewParam === "list" ? "list" : "grid";
+
+    setMode(nextMode);
+    setQuery(queryParam ?? "");
+    setPage(parsePositiveIntParam(pageParam, 1));
+    setView(nextView);
+    setFilters({
+      doc_type: parseListParam(docTypeParam),
+      tags: parseListParam(tagsParam),
+      lang: parseListParam(langParam),
+      from: fromParam ?? "",
+      to: toParam ?? "",
+      sort: parseSortParam(sortParam),
+    });
+
+    restoredFromUrlRef.current = true;
+    setStateReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!stateReady) {
+      return;
+    }
+
+    const nextParams = new URLSearchParams();
+    if (mode === "ask") {
+      nextParams.set("mode", "ask");
+    }
+    if (query.trim()) {
+      nextParams.set("q", query.trim());
+    }
+    if (page > 1) {
+      nextParams.set("page", String(page));
+    }
+    if (view === "list") {
+      nextParams.set("view", "list");
+    }
+    if (filters.doc_type.length > 0) {
+      nextParams.set("docType", filters.doc_type.join(","));
+    }
+    if (filters.tags.length > 0) {
+      nextParams.set("tags", filters.tags.join(","));
+    }
+    if (filters.lang.length > 0) {
+      nextParams.set("lang", filters.lang.join(","));
+    }
+    if (filters.from) {
+      nextParams.set("fromDate", filters.from);
+    }
+    if (filters.to) {
+      nextParams.set("toDate", filters.to);
+    }
+    if (filters.sort !== "relevance_desc") {
+      nextParams.set("sort", filters.sort);
+    }
+
+    const current =
+      typeof window !== "undefined"
+        ? window.location.search.replace(/^\?/, "")
+        : "";
+    const next = nextParams.toString();
+    if (current === next) {
+      return;
+    }
+
+    router.replace(next ? `/?${next}` : "/", { scroll: false });
+  }, [filters, mode, page, query, router, stateReady, view]);
+
   const libraryMode = mode === "search" && query.trim().length === 0;
   const visibleDocIds = useMemo(
     () => Array.from(new Set(data.hits.map((hit) => hit.doc_id))),
@@ -91,7 +230,7 @@ export default function HomePage() {
   );
 
   useEffect(() => {
-    if (mode !== "search") {
+    if (!stateReady || mode !== "search") {
       return;
     }
 
@@ -162,7 +301,7 @@ export default function HomePage() {
       controller.abort();
       window.clearTimeout(timeout);
     };
-  }, [filters, mode, page, query, refreshToken, libraryMode, searchTick]);
+  }, [filters, mode, page, query, refreshToken, libraryMode, searchTick, stateReady]);
 
   useEffect(() => {
     if (!libraryMode) {
@@ -178,9 +317,7 @@ export default function HomePage() {
       return;
     }
 
-    const approved = window.confirm(
-      "Delete this local file and metadata? Backend index delete is not available yet."
-    );
+    const approved = window.confirm("Delete this document?");
     if (!approved) {
       return;
     }
@@ -213,13 +350,13 @@ export default function HomePage() {
       return;
     }
     if (deletableSelectedDocIds.length === 0) {
-      setSearchError("Selected documents cannot be deleted from this view.");
+      setSearchError("Selected documents cannot be deleted.");
       return;
     }
     const skippedCount = selectedDocIds.length - deletableSelectedDocIds.length;
 
     const approved = window.confirm(
-      `Delete ${deletableSelectedDocIds.length} selected local file(s) and metadata?`
+      `Delete ${deletableSelectedDocIds.length} selected document(s)?`
     );
     if (!approved) {
       return;
@@ -244,7 +381,7 @@ export default function HomePage() {
         const successCount = results.length - failed.length;
         setSearchError(`Deleted ${successCount} document(s). ${failed.length} delete(s) failed.`);
       } else if (skippedCount > 0) {
-        setSearchError(`Deleted ${results.length} document(s). ${skippedCount} cannot be deleted from this view.`);
+        setSearchError(`Deleted ${results.length} document(s). ${skippedCount} could not be deleted.`);
       }
 
       setSelectedDocIds([]);
@@ -305,6 +442,7 @@ export default function HomePage() {
   };
 
   const triggerSearch = () => {
+    setSearchFocused(false);
     setPage(1);
     setSearchTick((prev) => prev + 1);
   };
@@ -313,6 +451,52 @@ export default function HomePage() {
     setQuery("");
     setPage(1);
   };
+
+  const persistSearchHistory = (nextHistory: string[]) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(nextHistory));
+  };
+
+  const saveSearchTerm = (rawTerm: string) => {
+    const term = rawTerm.trim();
+    if (!term) {
+      return;
+    }
+    setSearchHistory((prev) => {
+      const deduped = [term, ...prev.filter((item) => item.toLowerCase() !== term.toLowerCase())].slice(0, 12);
+      persistSearchHistory(deduped);
+      return deduped;
+    });
+  };
+
+  const removeSearchTerm = (rawTerm: string) => {
+    const term = rawTerm.trim().toLowerCase();
+    if (!term) {
+      return;
+    }
+    setSearchHistory((prev) => {
+      const next = prev.filter((item) => item.trim().toLowerCase() !== term);
+      persistSearchHistory(next);
+      return next;
+    });
+  };
+
+  const suggestions = useMemo(() => {
+    if (mode !== "search") {
+      return [];
+    }
+    const term = query.trim().toLowerCase();
+    if (!term) {
+      return searchHistory.slice(0, 3);
+    }
+    const startsWith = searchHistory.filter((item) => item.toLowerCase().startsWith(term));
+    const contains = searchHistory.filter(
+      (item) => !item.toLowerCase().startsWith(term) && item.toLowerCase().includes(term)
+    );
+    return [...startsWith, ...contains].slice(0, 3);
+  }, [mode, query, searchHistory]);
 
   const appliedFilters = useMemo(() => {
     const chips: Array<{ key: string; label: string; remove: () => void }> = [];
@@ -380,6 +564,34 @@ export default function HomePage() {
         : "grid-cols-1 md:grid-cols-2 xl:grid-cols-2"
       : "grid-cols-1";
 
+  useEffect(() => {
+    autoResizeTextarea(searchTextareaRef.current);
+    autoResizeTextarea(askTextareaRef.current);
+  }, [mode, query]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(SEARCH_HISTORY_KEY);
+      if (!raw) {
+        return;
+      }
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) {
+        return;
+      }
+      const cleaned = parsed
+        .map((item) => (typeof item === "string" ? item.trim() : ""))
+        .filter(Boolean)
+        .slice(0, 12);
+      setSearchHistory(cleaned);
+    } catch {
+      setSearchHistory([]);
+    }
+  }, []);
+
   return (
     <div className="relative min-h-screen overflow-hidden pb-20">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.16),transparent_34%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.10),transparent_30%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.16),transparent_34%),radial-gradient(circle_at_top_right,_rgba(34,197,94,0.10),transparent_28%)]" />
@@ -391,7 +603,7 @@ export default function HomePage() {
               <Search className="h-4 w-4" />
             </div>
             <div>
-              <p className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">DocFinder</p>
+              <p className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">GandalFS &lt;&gt;</p>
               <p className="text-xs text-slate-500 dark:text-slate-300">document intelligence</p>
             </div>
           </Link>
@@ -419,7 +631,7 @@ export default function HomePage() {
           className="mb-4 rounded-3xl border border-white/85 bg-white/85 p-4 shadow-[0_16px_38px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-700/90 dark:bg-slate-900/80 md:p-6"
         >
           <h1 className="mb-4 text-center text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 md:text-3xl">
-            What do you want to find?
+            {mode === "ask" ? "Want to ask?" : "What do you want to find?"}
           </h1>
 
           <div className="mb-4 flex justify-center">
@@ -452,48 +664,102 @@ export default function HomePage() {
           </div>
 
           {mode === "search" ? (
-            <div className="mx-auto flex w-full max-w-6xl items-center gap-3 rounded-[1.7rem] border border-slate-200 bg-white px-5 py-3 shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900">
-              <Search className="h-5 w-5 text-slate-400 dark:text-slate-300" />
-              <Input
-                value={query}
-                onChange={(event) => {
-                  setPage(1);
-                  setQuery(event.target.value);
-                }}
-                placeholder="Search by clause, control, policy... (leave empty to list all files)"
-                className="h-12 border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0 md:text-lg"
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    triggerSearch();
-                  }
-                }}
-              />
-              {query ? (
+            <div className="relative mx-auto w-full max-w-6xl">
+              <div className="flex items-end gap-3 rounded-[1.7rem] border border-slate-200 bg-white px-5 py-3 shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900">
+                <Search className="mt-3 h-5 w-5 shrink-0 text-slate-400 dark:text-slate-300" />
+                <textarea
+                  ref={searchTextareaRef}
+                  value={query}
+                  onChange={(event) => {
+                    setPage(1);
+                    setQuery(event.target.value);
+                  }}
+                  onInput={(event) => autoResizeTextarea(event.currentTarget)}
+                  placeholder="Search documents... (leave empty to see all files)"
+                  rows={1}
+                  className="max-h-[220px] min-h-[48px] w-full resize-none overflow-y-auto border-0 bg-transparent px-0 py-3 text-base leading-6 shadow-none outline-none md:text-lg"
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setSearchFocused(false)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      saveSearchTerm(query);
+                      triggerSearch();
+                    }
+                  }}
+                />
+                {query ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 rounded-xl"
+                    onClick={clearQuery}
+                    aria-label="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                ) : null}
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 rounded-xl"
-                  onClick={clearQuery}
-                  aria-label="Clear search"
+                  variant="accent"
+                  className="h-11 rounded-2xl px-5"
+                  onClick={() => {
+                    saveSearchTerm(query);
+                    triggerSearch();
+                  }}
                 >
-                  <X className="h-4 w-4" />
+                  Search
                 </Button>
+              </div>
+              {searchFocused && suggestions.length > 0 ? (
+                <div className="mt-2 rounded-2xl border border-slate-200/90 bg-white/95 p-1.5 shadow-[0_10px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/95">
+                  {suggestions.map((item) => (
+                    <div
+                      key={item}
+                      className="group flex w-full items-center gap-1 rounded-xl px-2 py-1.5 text-left text-sm text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                    >
+                      <button
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          setQuery(item);
+                          setPage(1);
+                          saveSearchTerm(item);
+                          setSearchTick((prev) => prev + 1);
+                          setSearchFocused(false);
+                        }}
+                        className="min-w-0 flex-1 truncate rounded-lg px-1 py-1 text-left"
+                        title={item}
+                      >
+                        {item}
+                      </button>
+                      <button
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => removeSearchTerm(item)}
+                        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+                        aria-label={`Remove ${item} from search history`}
+                        title="Remove from history"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               ) : null}
-              <Button variant="accent" className="h-11 rounded-2xl px-5" onClick={triggerSearch}>
-                Search
-              </Button>
             </div>
           ) : (
-            <div className="mx-auto flex w-full max-w-6xl items-center gap-3 rounded-[1.7rem] border border-slate-200 bg-white px-5 py-3 shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900">
-              <Search className="h-5 w-5 text-slate-400 dark:text-slate-300" />
-              <Input
+            <div className="mx-auto flex w-full max-w-6xl items-end gap-3 rounded-[1.7rem] border border-slate-200 bg-white px-5 py-3 shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900">
+              <Search className="mt-3 h-5 w-5 shrink-0 text-slate-400 dark:text-slate-300" />
+              <textarea
+                ref={askTextareaRef}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
+                onInput={(event) => autoResizeTextarea(event.currentTarget)}
                 placeholder="Ask a question about your indexed documents..."
-                className="h-12 border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0 md:text-lg"
+                rows={1}
+                className="max-h-[220px] min-h-[48px] w-full resize-none overflow-y-auto border-0 bg-transparent px-0 py-3 text-base leading-6 shadow-none outline-none md:text-lg"
                 onKeyDown={(event) => {
-                  if (event.key === "Enter") {
+                  if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault();
                     void onAsk();
                   }
@@ -623,6 +889,7 @@ export default function HomePage() {
                     ))}
                   </div>
                 )}
+
               </div>
 
               {loading ? (
@@ -670,7 +937,7 @@ export default function HomePage() {
                         detailHref={
                           libraryMode
                             ? `/document/${hit.doc_id}?from=library`
-                            : `/document/${hit.doc_id}?from=search&page=${hit.page_start}`
+                            : `/document/${hit.doc_id}?from=search`
                         }
                       />
                     ))}

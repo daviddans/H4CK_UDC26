@@ -114,6 +114,7 @@ function collapseToDocuments(hits: DocumentHit[]) {
     }
 
     const mergedTags = Array.from(new Set([...existing.tags, ...hit.tags]));
+    const mergedTotalPages = Math.max(existing.total_pages ?? 0, hit.total_pages ?? 0);
     const keepNew =
       hit.score > existing.score ||
       (hit.score === existing.score && hit.date > existing.date);
@@ -122,6 +123,7 @@ function collapseToDocuments(hits: DocumentHit[]) {
     byDoc.set(hit.doc_id, {
       ...best,
       tags: mergedTags,
+      total_pages: mergedTotalPages > 0 ? mergedTotalPages : undefined,
     });
   }
 
@@ -168,6 +170,7 @@ async function buildLibraryHits(): Promise<DocumentHit[]> {
       tags: Array.from(new Set([...(cached?.tags ?? []), ...(entry.tags ?? [])])),
       page_start: 1,
       page_end: totalPages,
+      total_pages: totalPages,
       lang: cached?.lang ?? "unknown",
       date: cached?.date ?? "",
       score: 0,

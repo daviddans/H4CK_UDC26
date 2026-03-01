@@ -1,4 +1,4 @@
-# DocFinder Frontend
+# GandalFS Frontend
 
 Frontend en Next.js para búsqueda y carga de documentos contra backend FastAPI.
 

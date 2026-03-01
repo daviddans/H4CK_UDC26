@@ -1,12 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { Bot, FileSearch } from "lucide-react";
+import { Bot, ExternalLink, FileSearch } from "lucide-react";
 import { motion } from "framer-motion";
 
 import type { AskResponse } from "@/types/docfinder";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+function cleanTitle(title: string, docId: string) {
+  const source = title?.trim() || docId;
+  return source.replace(/^UPL-[A-Z0-9]{8,}-/i, "").trim();
+}
+
+function fileTypeLabel(docType?: string, sourceName?: string, title?: string) {
+  if (docType?.trim()) {
+    return docType.trim().toUpperCase();
+  }
+  const raw = sourceName?.trim() || title?.trim() || "";
+  const base = raw.replaceAll("\\", "/").split("/").pop() ?? raw;
+  const ext = base.includes(".") ? base.split(".").pop()?.toUpperCase() : "";
+  return ext || "FILE";
+}
 
 type AskPanelProps = {
   loading: boolean;
@@ -49,23 +64,19 @@ export function AskPanel({ loading, response }: AskPanelProps) {
                     key={`${citation.doc_id}-${citation.page}-${index}`}
                     className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
                   >
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <Badge variant="outline">{citation.doc_id}</Badge>
-                      <span className="text-xs text-slate-500 dark:text-slate-400">pag. {citation.page}</span>
+                    <div className="mb-2 flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+                      <span>pag. {citation.page}</span>
+                      <Badge variant="outline">
+                        {fileTypeLabel(citation.doc_type, citation.source_name, citation.title)}
+                      </Badge>
                     </div>
-                    <p className="mb-2 text-sm font-semibold leading-5 text-slate-800 dark:text-slate-100">
-                      {citation.title}
-                    </p>
-                    <div
-                      className="text-sm text-slate-600 dark:text-slate-300"
-                      dangerouslySetInnerHTML={{ __html: citation.snippet_html }}
-                    />
-                    <div className="mt-3">
+                    <div className="mt-1">
                       <Link
-                        href={`/document/${citation.doc_id}?from=search&page=${citation.page}`}
-                        className="text-sm font-semibold text-cyan-700 hover:text-cyan-600 dark:text-cyan-300 dark:hover:text-cyan-200"
+                        href={`/document/${citation.doc_id}?from=search`}
+                        className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-700 hover:text-cyan-600 dark:text-cyan-300 dark:hover:text-cyan-200"
                       >
-                        Open source
+                        {cleanTitle(citation.source_name ?? citation.title, citation.doc_id)}
+                        <ExternalLink className="h-3.5 w-3.5" />
                       </Link>
                     </div>
                   </div>
