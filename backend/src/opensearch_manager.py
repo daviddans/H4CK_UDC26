@@ -25,7 +25,6 @@ class OpenSearchManager:
             )
             # Mantenemos el modelo Multilingual E5 Small (384 dim)
             self.model = SentenceTransformer("intfloat/multilingual-e5-small")
-
             # Actualizamos el pipeline para manejar 3 fuentes de puntuación
             self.create_rrf_pipeline()
         except Exception as e:
@@ -59,7 +58,9 @@ class OpenSearchManager:
         try:
             if self.client.search_pipeline.get(id=pipeline_id):
                 self.client.search_pipeline.delete(id=pipeline_id)
-
+        except Exception as e:
+            print(f"Warning: No se pudo eliminar el pipeline existente: {e}")
+        try:
             self.client.search_pipeline.put(id=pipeline_id, body=pipeline_body)
         except Exception as e:
             raise e
@@ -122,7 +123,7 @@ class OpenSearchManager:
                                 "format": "yyyy-MM-dd",
                                 "index": False,
                             },
-                            "type": {"type": "keyword", "index": False},
+                            "lang": {"type": "keyword", "index": False},
                             "tags": {"type": "keyword", "index": False},
                         }
                     },
@@ -161,7 +162,7 @@ class OpenSearchManager:
                             "title": os.path.basename(file_path),
                             "author": autor,
                             "creation_date": creation_date,
-                            "type": lang,
+                            "lang": lang,
                             "tags": tags if isinstance(tags, list) else [],
                         },
                     },

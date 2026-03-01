@@ -1,7 +1,6 @@
 import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-
 from opensearch_manager import OpenSearchManager
 from ollama_manager import OllamaManager
 from parser import limpiar
@@ -64,17 +63,22 @@ def search(payload: QueryRequest):
 def ask_ai(payload: QueryRequest):
     """Busca contexto y genera una respuesta con la IA."""
     # 1. Buscar los 4 fragmentos más relevantes
-    search_result = search_manager.hybrid_search_rrf(INDEX_NAME, payload.query, top_k=4)
+    search_result = search_manager.hybrid_search_rrf(INDEX_NAME, payload.query, top_k=5)
+    if isinstance(search_result, Exception):
+        raise HTTPException(status_code=500, detail=f"Search failed: {search_result}")
 
     hits = search_result.get("hits", {}).get("hits", [])
     if not hits:
         return {"answer": "No encontré información sobre eso.", "sources": []}
 
     # 2. Extraer solo el contenido de texto para la IA
-    context_chunks = [hit["_source"]["content"] for hit in hits]
+    context_data = [hit["_source"] for hit in hits]
 
     # 3. Generar respuesta con Ollama
-    answer = ai_manager.generate_answer(payload.query, context_chunks)
+    try:
+        answer = ai_manager.generate_answer(payload.query, context_data)
+    except Exception as error:
+        raise HTTPException(status_code=502, detail=f"LLM generation failed: {error}") from error
 
     # 4. Preparar fuentes simplificadas
     sources = []
